@@ -3,34 +3,34 @@
 ##################################################
 
 # Environment files
-# .env
-# .env.local
-# .env.development.local
-# .env.test.local
-# .env.production.local
-# flyway.conf
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+flyway.conf
 
 ##################################################
 # ===== Java / Spring Boot / Maven =====
 ##################################################
 
 # Maven
-# target/
-# !.mvn/wrapper/maven-wrapper.jar
-# !**/src/main/**/target/
-# !**/src/test/**/target/
-# pom.xml.tag
-# pom.xml.releaseBackup
-# pom.xml.versionsBackup
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
 
 # Spring Boot
-# HELP.md
-# .springBeans
-# .sts4-cache
+HELP.md
+.springBeans
+.sts4-cache
 
 # Application properties (sensitive)
-# **/src/main/resources/application.properties
-# **/src/main/resources/application-*.properties
+**/src/main/resources/application.properties
+**/src/main/resources/application-*.properties
 
 ##################################################
 # ===== Node.js / Frontend =====
