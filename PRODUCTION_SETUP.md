@@ -49,6 +49,14 @@ export DB_PASS=your-secure-password
 # CORS - Allow your domain
 export ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
 
+# JWT Secret (CRITICAL for production)
+# Generate a secure 256-bit key ONCE and save it in a secure password manager
+# Generate with: openssl rand -base64 32
+export JWT_SECRET=your-256-bit-secret-key-here-change-this-immediately
+
+# JWT Expiration (30 minutes in milliseconds)
+export JWT_EXPIRATION=1800000
+
 # reCAPTCHA
 export RECAPTCHA_SECRET_KEY=your-production-secret-key
 
@@ -92,6 +100,12 @@ Or set environment variables and run normally:
 | Variable | Default | Production Example |
 |----------|---------|------------------|
 | `ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:3000` | `https://yourdomain.com,https://www.yourdomain.com` |
+
+### Backend - JWT (Authentication)
+| Variable | Default | Production Example | Notes |
+|----------|---------|------------------|-------|
+| `JWT_SECRET` | **REQUIRED** ❌ | `your-256-bit-secret-key` | **CRITICAL**: Generate once with `openssl rand -base64 32`. Change immediately! Never commit to version control. |
+| `JWT_EXPIRATION` | `1800000` (30 min) | `1800000` | Token expiration in milliseconds. Decrease for higher security. |
 
 ### Backend - Logging
 | Variable | Default (Dev) | Production |
@@ -207,11 +221,87 @@ That's it! No code changes needed. 🎉
 
 ---
 
+## JWT Security Best Practices
+
+### Critical: Protect Your JWT_SECRET
+
+The `JWT_SECRET` is the encryption key for all authentication tokens. **NEVER**:
+- ❌ Commit it to version control (even in branches!)
+- ❌ Share it in Slack, email, or chat
+- ❌ Use weak/short values
+- ❌ Reuse the same secret across environments
+
+### How to Securely Manage Secrets in Production
+
+#### Option 1: Environment Variables (Simple)
+```bash
+# Generate a secure secret ONCE
+openssl rand -base64 32
+
+# Save in secure location (password manager, vault, etc.)
+# Then set it in your production environment
+export JWT_SECRET=your-generated-secret
+```
+
+#### Option 2: AWS Secrets Manager (Recommended for AWS)
+```bash
+# Store secret in AWS Secrets Manager
+aws secretsmanager create-secret --name jwt-secret --secret-string "your-secret"
+
+# Retrieve at runtime (modify EnvironmentValidator to fetch from Secrets Manager)
+```
+
+#### Option 3: HashiCorp Vault (Enterprise)
+```bash
+# Store and rotate secrets centrally
+vault kv put secret/jwt-secret key=your-secret
+```
+
+#### Option 4: Docker Secrets (If using Docker/K8s)
+```dockerfile
+# Never commit secrets to Dockerfile
+FROM openjdk:17-jdk
+COPY --from=secrets-provider /run/secrets/jwt_secret /app/
+```
+
+### Rotation Strategy
+- Rotate `JWT_SECRET` every 90 days
+- Keep old secret for 24 hours to allow active tokens to expire naturally
+- Track rotation in audit logs
+
+---
+
 ## Troubleshooting
 
+### Application Fails to Start with "Required environment variables are not set"
+- **Cause**: Missing `JWT_SECRET` or other required environment variables
+- **Solution**: Set all required variables before starting:
+  ```bash
+  export JWT_SECRET=$(openssl rand -base64 32)
+  export DB_URL=jdbc:postgresql://localhost:5432/omav1
+  export DB_USER=postgres
+  export DB_PASS=your-password
+  export RECAPTCHA_SECRET_KEY=your-key
+  export ALLOWED_ORIGINS=http://localhost:5173
+  ```
+
+### JWT Token Validation Fails
+- **Cause**: Wrong `JWT_SECRET` used to validate token
+- **Solution**: Ensure the same `JWT_SECRET` is used across all instances. Don't change it for running tokens!
+
+### Tokens Expire Too Quickly
+- **Cause**: `JWT_EXPIRATION` is set too low
+- **Solution**: Adjust `JWT_EXPIRATION` (in milliseconds). Default is 30 minutes (1800000 ms)
+  ```bash
+  export JWT_EXPIRATION=3600000  # 1 hour
+  ```
+
 ### CORS Error in Production
-- Check `ALLOWED_ORIGINS` includes your domain
-- Ensure frontend and backend are on correct domains
+- **Cause**: `ALLOWED_ORIGINS` doesn't include your domain
+- **Solution**: Add your domain and www variant:
+  ```bash
+  export ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+  ```
 
 ### Database Connection Failed
 - Verify `DB_URL`, `DB_USER`, `DB_PASS` are correct
