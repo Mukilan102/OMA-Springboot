@@ -18,4 +18,9 @@ public interface SurveyResponseRepo extends JpaRepository<SurveyResponse, Long> 
      @Modifying
      @Query("DELETE FROM SurveyResponse r WHERE r.submission.sessionId = :sessionId AND r.mainQuestionId = :mainQuestionId")
      void deleteBySessionIdAndMainQuestionId(String sessionId, Integer mainQuestionId);
+
+    /** Delete ALL answer rows for a session (used by bulk save-progress). */
+     @Modifying
+     @Query("DELETE FROM SurveyResponse r WHERE r.submission.sessionId = :sessionId")
+     void deleteBySubmissionSessionId(String sessionId);
 }

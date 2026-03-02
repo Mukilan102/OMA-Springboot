@@ -57,10 +57,14 @@ public class CredentialController {
 
             // Check rate limit (5 attempts per minute per IP)
             if (!rateLimitingUtil.isLoginAllowed(clientIp)) {
+                long retrySeconds = rateLimitingUtil.getSecondsUntilRefill(clientIp);
                 Map<String, Object> errorResponse = new HashMap<>();
                 errorResponse.put("success", false);
-                errorResponse.put("message", "Too many login attempts. Please try again in 1 minute.");
-                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(errorResponse);
+                errorResponse.put("message", "Too many login attempts.");
+                errorResponse.put("retryAfterSeconds", retrySeconds);
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                        .header("Retry-After", String.valueOf(retrySeconds))
+                        .body(errorResponse);
             }
 
             var existingUser = credentialsRepo.findByUsername(credentials.getUsername());

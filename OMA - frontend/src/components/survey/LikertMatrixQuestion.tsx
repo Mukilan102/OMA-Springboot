@@ -54,15 +54,23 @@ export function LikertMatrixQuestion({
                   return (
                     <td
                       key={opt.option_id}
-                      className="p-3 text-center border-b border-gray-100"
+                      className={`border-b border-gray-100 transition-colors duration-150 ${
+                        isSelected
+                          ? 'bg-[#008489]/10'
+                          : 'hover:bg-gray-100/70'
+                      }`}
                     >
-                      <input
-                        type="radio"
-                        name={`sq-${sq.sub_question_id}`}
-                        checked={isSelected}
-                        onChange={() => handleSelect(sq.sub_question_id, opt.option_id)}
-                        className="w-4 h-4 accent-[#008489] cursor-pointer"
-                      />
+                      <label
+                        className="flex items-center justify-center w-full h-full p-3 cursor-pointer"
+                      >
+                        <input
+                          type="radio"
+                          name={`sq-${sq.sub_question_id}`}
+                          checked={isSelected}
+                          onChange={() => handleSelect(sq.sub_question_id, opt.option_id)}
+                          className="w-4 h-4 accent-[#008489] cursor-pointer"
+                        />
+                      </label>
                     </td>
                   );
                 })}

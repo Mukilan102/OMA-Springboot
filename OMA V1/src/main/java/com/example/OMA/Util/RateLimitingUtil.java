@@ -52,6 +52,17 @@ public class RateLimitingUtil {
     }
 
     /**
+     * Get the number of seconds until the next token is available for this IP.
+     * Used to populate the Retry-After header dynamically.
+     */
+    public long getSecondsUntilRefill(String ipAddress) {
+        Bucket bucket = getLoginBucket(ipAddress);
+        long nanosToWait = bucket.estimateAbilityToConsume(1).getNanosToWaitForRefill();
+        long seconds = (nanosToWait + 999_999_999L) / 1_000_000_000L; // ceiling division
+        return Math.max(seconds, 1); // at least 1 second
+    }
+
+    /**
      * Clear rate limit for an IP (for testing or admin operations).
      */
     public void clearLimit(String ipAddress) {

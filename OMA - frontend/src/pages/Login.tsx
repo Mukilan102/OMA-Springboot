@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { Clock } from "lucide-react";
 
 import logo from "../assets/logo.png";
 import "../styles/login-background.css";
-import apiClient from "../config/api";
+import apiClient, { ApiError } from "../config/api";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -14,10 +15,39 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [retryCountdown, setRetryCountdown] = useState(0);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const retryTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const isRetryLocked = retryCountdown > 0;
+
+  // Start a countdown timer that ticks every second
+  const startRetryTimer = useCallback((seconds: number) => {
+    // Clear any existing timer
+    if (retryTimerRef.current) clearInterval(retryTimerRef.current);
+    setRetryCountdown(seconds);
+    retryTimerRef.current = setInterval(() => {
+      setRetryCountdown((prev) => {
+        if (prev <= 1) {
+          if (retryTimerRef.current) clearInterval(retryTimerRef.current);
+          retryTimerRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (retryTimerRef.current) clearInterval(retryTimerRef.current);
+    };
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isRetryLocked) return;
     setError("");
     setIsLoading(true);
 
@@ -31,8 +61,18 @@ export default function Login() {
       });
 
       if (!response.ok) {
-        const errorData = await response.text();
-        setError(errorData || "Login failed. Please check your credentials.");
+        const apiError = await apiClient.parseError(response);
+
+        // Handle rate limiting (429)
+        if (response.status === 429) {
+          // Use retry metadata if available, fall back to 60s
+          const waitSeconds = apiError.retryAfterSeconds ?? 60;
+          startRetryTimer(waitSeconds);
+          setError("Too many login attempts.");
+        } else {
+          setError(apiError.message || "Login failed. Please check your credentials.");
+        }
+
         setIsLoading(false);
         return;
       }
@@ -41,7 +81,12 @@ export default function Login() {
       // Navigate to dashboard
       navigate("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred during login");
+      if (err instanceof ApiError) {
+        setError(err.message);
+        if (err.retryAfterSeconds) startRetryTimer(err.retryAfterSeconds);
+      } else {
+        setError(err instanceof Error ? err.message : "An error occurred during login");
+      }
       setIsLoading(false);
     }
   };
@@ -167,8 +212,14 @@ export default function Login() {
 
           <form onSubmit={handleLogin} className="space-y-6 animate-fade-in-up animate-delay-200">
             {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-                {error}
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl space-y-1.5">
+                <p className="text-sm font-medium">{error}</p>
+                {isRetryLocked && (
+                  <div className="flex items-center gap-1.5 text-xs text-red-500">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Try again in <strong>{retryCountdown}</strong> second{retryCountdown !== 1 ? 's' : ''}</span>
+                  </div>
+                )}
               </div>
             )}
             
@@ -208,10 +259,14 @@ export default function Login() {
 
             <Button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || isRetryLocked}
               className="w-full h-12 bg-[#002D72] hover:bg-[#001f52] text-white disabled:opacity-50"
             >
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isLoading
+                ? "Signing in..."
+                : isRetryLocked
+                  ? `Locked (${retryCountdown}s)`
+                  : "Sign In"}
             </Button>
 
           </form>

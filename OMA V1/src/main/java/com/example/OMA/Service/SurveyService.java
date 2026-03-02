@@ -1,6 +1,7 @@
 package com.example.OMA.Service;
 
 import com.example.OMA.DTO.SaveAnswerDTO;
+import com.example.OMA.DTO.SaveProgressDTO;
 import com.example.OMA.DTO.SurveySubmissionDTO;
 import com.example.OMA.Model.MainQuestion;
 import com.example.OMA.Model.Option;
@@ -63,6 +64,40 @@ public class SurveyService {
         // Insert new answer row(s) — save each response explicitly
         List<SurveyResponse> rows = buildResponseRows(submission, dto.getMainQuestionId(), dto.getAnswer());
         responseRepo.saveAll(rows);
+    }
+
+    /**
+     * Bulk save-progress: replaces ALL stored responses for a session with the
+     * full responses map from the frontend.
+     * Idempotent — multiple identical calls produce the same result.
+     * Does NOT touch submittedAt (that is the job of submitSurvey).
+     */
+    @Transactional
+    public void saveProgress(SaveProgressDTO dto) {
+        // Upsert the submission row
+        SurveySubmission submission = submissionRepo.findById(dto.getSessionId()).orElse(null);
+        if (submission == null) {
+            submission = new SurveySubmission(dto.getSessionId(), LocalDateTime.now(), null);
+            submissionRepo.saveAndFlush(submission);
+        }
+
+        // If already submitted, reject silently (don't overwrite final data)
+        if (submission.getSubmittedAt() != null) return;
+
+        // Wipe all existing response rows for this session
+        responseRepo.deleteBySubmissionSessionId(dto.getSessionId());
+        responseRepo.flush();
+
+        // Re-insert all responses from the full map
+        Map<String, Object> responses = dto.getResponses();
+        if (responses != null && !responses.isEmpty()) {
+            List<SurveyResponse> allRows = new ArrayList<>();
+            for (Map.Entry<String, Object> entry : responses.entrySet()) {
+                Integer mainQId = Integer.valueOf(entry.getKey());
+                allRows.addAll(buildResponseRows(submission, mainQId, entry.getValue()));
+            }
+            responseRepo.saveAll(allRows);
+        }
     }
 
     /**

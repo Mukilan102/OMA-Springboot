@@ -1,6 +1,7 @@
 package com.example.OMA.Controller;
 
 import com.example.OMA.DTO.SaveAnswerDTO;
+import com.example.OMA.DTO.SaveProgressDTO;
 import com.example.OMA.DTO.SurveySubmissionDTO;
 import com.example.OMA.Model.SurveySubmission;
 import com.example.OMA.Service.SurveyService;
@@ -30,6 +31,27 @@ public class SurveyController {
     public ResponseEntity<Map<String, Object>> saveAnswer(@RequestBody SaveAnswerDTO dto) {
         try {
             surveyService.saveAnswer(dto);
+            Map<String, Object> body = new HashMap<>();
+            body.put("success", true);
+            return ResponseEntity.ok(body);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
+        }
+    }
+
+    /**
+     * Bulk save-progress endpoint — receives the FULL responses map.
+     * Idempotent: replaces all stored responses for this session with the payload.
+     * Called by the frontend autosave hook on navigation, answer change, and visibility events.
+     */
+    @PostMapping("/save-progress")
+    public ResponseEntity<Map<String, Object>> saveProgress(@RequestBody SaveProgressDTO dto) {
+        try {
+            surveyService.saveProgress(dto);
             Map<String, Object> body = new HashMap<>();
             body.put("success", true);
             return ResponseEntity.ok(body);

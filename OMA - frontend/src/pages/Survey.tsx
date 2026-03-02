@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "../components/ui/button";
 import { Progress } from "../components/ui/progress";
 import apiClient from "../config/api";
@@ -15,6 +15,7 @@ import {
 import { ChevronLeft, ChevronRight, Loader2, CheckCircle2, WifiOff, RefreshCw, AlertCircle, Heart } from "lucide-react";
 import logo from "../assets/HARTS Consulting LBG.png";
 import { QuestionRenderer } from "../components/survey";
+import { useAutoSave } from "../hooks/useAutoSave";
 
 import type { SurveyCategory, SurveyQuestion, SurveyQuestionType, ResponseValue } from "../types/survey";
 
@@ -38,10 +39,6 @@ function setCookie(name: string, value: string, days = 30) {
 function getCookie(name: string): string | null {
   const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
   return match ? decodeURIComponent(match[1]) : null;
-}
-
-function deleteCookie(name: string) {
-  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
 }
 
 // ── Helpers ──
@@ -181,7 +178,6 @@ export default function Survey() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [responses, setResponses] = useState<Record<string, ResponseValue>>({});
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "offline">("idle");
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [rankConfirmOpen, setRankConfirmOpen] = useState(false);
   const [rankReordered, setRankReordered] = useState(false);
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
@@ -196,7 +192,6 @@ export default function Survey() {
 
   const sessionId = useRef(getOrCreateSessionId());
   const restoredPosition = useRef(false);
-  const pendingDBSaves = useRef<Array<{ mainQuestionId: number; answer: ResponseValue }>>([]);
 
   // ── Reset rank-reorder tracking + scroll to top whenever the question changes ──
   useEffect(() => {
@@ -256,51 +251,21 @@ export default function Survey() {
     localStorage.setItem(LS_TOUR_DONE, "true");
   };
 
-  // ── Track online/offline status ──
-  useEffect(() => {
-    const goOnline = () => {
-      setIsOnline(true);
-      setSaveStatus("idle");
-      // Flush any pending saves that failed while offline
-      flushPendingSaves();
-    };
-    const goOffline = () => {
-      setIsOnline(false);
-      setSaveStatus("offline");
-    };
-    window.addEventListener("online", goOnline);
-    window.addEventListener("offline", goOffline);
-    return () => {
-      window.removeEventListener("online", goOnline);
-      window.removeEventListener("offline", goOffline);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // ── Autosave hook — event-driven, full-state, failure-safe ──
+  const { triggerSave, seedSnapshot } = useAutoSave({
+    sessionId: sessionId.current,
+    responses,
+    currentCategoryIndex,
+    currentQuestionIndex,
+    enabled: !loading && surveyData.length > 0 && !submitted,
+    onStatusChange: setSaveStatus,
+  });
 
   // Flatten all questions for progress calculation
   const allQuestions = useMemo(() => {
     return surveyData.flatMap((cat) => cat.questions);
   }, [surveyData]);
 
-  // ── Flush pending DB saves (queued while offline) ──
-  const flushPendingSaves = useCallback(() => {
-    const pending = [...pendingDBSaves.current];
-    pendingDBSaves.current = [];
-    for (const { mainQuestionId, answer } of pending) {
-      apiClient.fetch("/survey/save-answer", {
-        method: "POST",
-        body: JSON.stringify({
-          sessionId: sessionId.current,
-          startedAt: localStorage.getItem(LS_STARTED_AT),
-          mainQuestionId,
-          answer,
-        }),
-      }).catch(() => {
-        // Re-queue if still failing
-        pendingDBSaves.current.push({ mainQuestionId, answer });
-      });
-    }
-  }, []);
 
   // ── Fetch survey data & restore saved state ──
   useEffect(() => {
@@ -338,6 +303,8 @@ export default function Survey() {
             if (dbData.found && dbData.responses && Object.keys(dbData.responses).length > 0) {
               const clean = sanitizeResponses(dbData.responses);
               setResponses(clean);
+              // Seed the autosave snapshot so we don't re-POST data we just loaded
+              seedSnapshot(clean);
               localStorage.setItem(LS_RESPONSES, JSON.stringify(clean));
               if (dbData.startedAt) {
                 localStorage.setItem(LS_STARTED_AT, dbData.startedAt);
@@ -355,6 +322,8 @@ export default function Survey() {
         const savedResponses = loadSavedResponses();
         if (Object.keys(savedResponses).length > 0) {
           setResponses(savedResponses);
+          // Don't seed snapshot here — localStorage data may not be on the server yet,
+          // so the next trigger will sync it up.
           restorePosition(data);
           setLoading(false);
           return;
@@ -385,30 +354,7 @@ export default function Survey() {
     }
   }, []);
 
-  // ── Immediate autosave to localStorage ──
-  const saveIndicatorRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (loading || surveyData.length === 0) return;
-
-    // Save to localStorage immediately (fast, no debounce)
-    if (isOnline) setSaveStatus("saving");
-    try {
-      localStorage.setItem(LS_RESPONSES, JSON.stringify(responses));
-      localStorage.setItem(
-        LS_POSITION,
-        JSON.stringify({ categoryIndex: currentCategoryIndex, questionIndex: currentQuestionIndex })
-      );
-    } catch {
-      // localStorage full or unavailable - silently ignore
-    }
-    if (isOnline) {
-      setSaveStatus("saved");
-      if (saveIndicatorRef.current) clearTimeout(saveIndicatorRef.current);
-      saveIndicatorRef.current = setTimeout(() => setSaveStatus("idle"), 1500);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [responses, currentCategoryIndex, currentQuestionIndex, loading, surveyData.length]);
+  // localStorage mirroring is now handled inside useAutoSave hook
 
   // Unanswered questions — drives the completion dialog and count
   const unansweredQuestions = useMemo(() => {
@@ -422,27 +368,7 @@ export default function Survey() {
 
 
 
-  // ── Immediate DB save (fire-and-forget on every navigation) ──
-  const saveAnswerToDB = useCallback(
-    (mainQuestionId: number, answer: ResponseValue) => {
-      if (!navigator.onLine) {
-        pendingDBSaves.current.push({ mainQuestionId, answer });
-        return;
-      }
-      apiClient.fetch("/survey/save-answer", {
-        method: "POST",
-        body: JSON.stringify({
-          sessionId: sessionId.current,
-          startedAt: localStorage.getItem(LS_STARTED_AT),
-          mainQuestionId,
-          answer,
-        }),
-      }).catch(() => {
-        pendingDBSaves.current.push({ mainQuestionId, answer });
-      });
-    },
-    []
-  );
+
 
   // ── Loading state ──
   if (loading) {
@@ -520,6 +446,9 @@ export default function Survey() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
+      // Ensure the latest responses are persisted before marking as submitted
+      triggerSave();
+
       const payload = {
         sessionId: sessionId.current,
         startedAt: localStorage.getItem(LS_STARTED_AT),
@@ -551,13 +480,11 @@ export default function Survey() {
       const existingRankAnswer = responses[responseKey];
       if (existingRankAnswer) {
         // Already answered on a previous visit — no dialog needed, just navigate
-        saveAnswerToDB(currentQuestion.main_question_id, existingRankAnswer as ResponseValue);
         // Fall through to normal navigation below
       } else {
         // First time hitting Next without reordering — auto-record default & ask
         const defaultOrder = currentQuestion.options.map((o) => o.option_id);
         setResponses((prev) => ({ ...prev, [responseKey]: defaultOrder }));
-        saveAnswerToDB(currentQuestion.main_question_id, defaultOrder);
         setRankConfirmOpen(true);
         return;
       }
@@ -565,10 +492,7 @@ export default function Survey() {
 
     // On the last question open the completion / confirm dialog instead of submitting
     if (isLastQuestion) {
-      const ans = responses[responseKey];
-      if (ans !== undefined && ans !== null) {
-        saveAnswerToDB(currentQuestion.main_question_id, ans);
-      }
+      triggerSave();
       if (unansweredCount > 0) {
         setCompletionDialogOpen(true);
       } else {
@@ -581,11 +505,8 @@ export default function Survey() {
   };
 
   const doNavigateNext = () => {
-    // Save current answer to DB immediately
-    const currentAnswer = responses[responseKey];
-    if (currentAnswer !== undefined && currentAnswer !== null) {
-      saveAnswerToDB(currentQuestion.main_question_id, currentAnswer);
-    }
+    // Trigger autosave — will only POST if responses actually changed
+    triggerSave();
 
     if (currentQuestionIndex < currentCategory.questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
@@ -597,6 +518,7 @@ export default function Survey() {
   };
 
   const navigateToQuestion = (question: SurveyQuestion) => {
+    triggerSave(); // save before jumping
     setCompletionDialogOpen(false);
     for (let ci = 0; ci < surveyData.length; ci++) {
       const qi = surveyData[ci].questions.findIndex(
@@ -612,6 +534,7 @@ export default function Survey() {
 
   // Navigate to a question by its global index (0-based across all categories)
   const navigateToGlobalIndex = (globalIdx: number) => {
+    triggerSave(); // save before jumping
     let idx = 0;
     for (let ci = 0; ci < surveyData.length; ci++) {
       for (let qi = 0; qi < surveyData[ci].questions.length; qi++) {
@@ -626,6 +549,7 @@ export default function Survey() {
   };
 
   const handlePrevious = () => {
+    triggerSave(); // save before going back
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(currentQuestionIndex - 1);
     } else if (currentCategoryIndex > 0) {
@@ -673,19 +597,19 @@ export default function Survey() {
             </div>
             {/* Autosave indicator */}
             <div className="flex items-center gap-2 text-xs text-[#4A4A4A]/70">
-              {!isOnline && (
+              {saveStatus === "offline" && (
                 <>
                   <WifiOff className="w-3.5 h-3.5 text-amber-500" />
                   <span className="text-amber-600">Offline — saved locally</span>
                 </>
               )}
-              {isOnline && saveStatus === "saving" && (
+              {saveStatus === "saving" && (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   <span>Saving...</span>
                 </>
               )}
-              {isOnline && saveStatus === "saved" && (
+              {saveStatus === "saved" && (
                 <>
                   <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
                   <span className="text-green-600">Progress saved</span>
@@ -825,10 +749,7 @@ export default function Survey() {
                   {unansweredCount === 0 && (
                     <Button
                       onClick={() => {
-                        const ans = responses[responseKey];
-                        if (ans !== undefined && ans !== null) {
-                          saveAnswerToDB(currentQuestion.main_question_id, ans);
-                        }
+                        triggerSave();
                         setSubmitConfirmOpen(true);
                       }}
                       disabled={submitting}
