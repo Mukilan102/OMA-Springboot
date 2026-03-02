@@ -118,6 +118,29 @@ public class CredentialController {
         return request.getRemoteAddr();
     }
     
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(HttpServletResponse response) {
+        try {
+            // Clear JWT cookie by setting maxAge to 0
+            Cookie jwtCookie = new Cookie("jwt", "");
+            jwtCookie.setHttpOnly(true);
+            jwtCookie.setSecure(false);  // Set to true in production
+            jwtCookie.setPath("/");
+            jwtCookie.setMaxAge(0);  // Immediately expire the cookie
+            jwtCookie.setAttribute("SameSite", "Strict");
+            response.addCookie(jwtCookie);
+            
+            Map<String, Object> responseBody = new HashMap<>();
+            responseBody.put("success", true);
+            responseBody.put("message", "Logout successful");
+            
+            return ResponseEntity.ok(responseBody);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Logout failed");
+        }
+    }
+
     @GetMapping("/check")
     public String simple(){
         return "success";
