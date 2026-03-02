@@ -14,6 +14,7 @@ import {
 } from "recharts";
 
 import { OnionPeel } from "../components/OnionPeel";
+import { HappinessChart } from "../components/HappinessChart";
 
 import { Footer } from "../components/Footer";
 import { useScrollAnimation } from "../hooks/useScrollAnimation";
@@ -40,6 +41,40 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [overallScore, setOverallScore] = useState<number>(0);
+
+  // Extract username from JWT cookie by attempting to call an authenticated endpoint
+  // If authentication fails, user will be redirected
+  useEffect(() => {
+    // Verify authentication by calling an authenticated endpoint
+    apiClient.fetch("/survey/survey_score")
+      .then(response => {
+        if (!response.ok) {
+          // Unauthorized - redirect to login
+          navigate("/login");
+          return;
+        }
+        // Authentication successful
+      })
+      .catch((err) => {
+        console.error("Authentication check failed:", err);
+        navigate("/login");
+      });
+  }, [navigate]);
+
+  const handleLogout = async () => {
+    try {
+      // Call logout endpoint to clear JWT cookie on backend
+      await apiClient.fetch("/credential/logout", {
+        method: "POST"
+      });
+      
+      // Navigate to login page after logout
+      navigate("/login");
+    } catch (err) {
+      // Even if logout fails, still redirect to login
+      navigate("/login");
+    }
+  };
 
   // Calculate overall score as average of all category scores
   useEffect(() => {
@@ -167,18 +202,24 @@ export default function Dashboard() {
             <div className="flex items-center gap-3">
               <img src={logo} alt="OMA Tool Logo" className="h-10 w-auto" />
               <h1 className="text-2xl font-light tracking-wider text-[#002D72]">
-                OMA Tool - Beta
+                OMA
               </h1>
             </div>
             <div className="flex gap-4">
               <Button
                 variant="ghost"
-                onClick={() => navigate("/home")}
+                onClick={() => navigate("/")}
                 className="text-[#4A4A4A] hover:text-[#002D72]"
               >
                 Home
               </Button>
-              
+              <Button
+                variant="outline"
+                onClick={handleLogout}
+                className="text-[#002D72] border-[#002D72] hover:bg-[#002D72] hover:text-white"
+              >
+                Logout
+              </Button>
             </div>
           </div>
         </div>
@@ -301,7 +342,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Organizational Health & Sentiment
+        {/* Organizational Health & Sentiment */}
         <div className="space-y-6 scroll-animate">
           <div className="space-y-2">
             <h3 className="text-4xl font-light text-[#002D72]">
@@ -316,16 +357,16 @@ export default function Dashboard() {
             <div className="h-full scroll-animate">
               <HappinessChart />
             </div>
-            {/* eNPS Score Card }
+            {/* eNPS Score Card */}
             <Card className="p-6 bg-white shadow-sm hover:shadow-md transition-shadow card-hover gradient-border-hover scroll-animate-right">
               <h4 className="text-xl font-medium mb-4 text-[#002D72]">Employee Net Promoter Score (eNPS)</h4>
               <div className="flex flex-col items-center">
-                {/* Donut Chart }
+                {/* Donut Chart */}
                 <div className="relative w-26 h-26 mb-3">
                   <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                    {/* Background circle }
+                    {/* Background circle */}
                     <circle cx="50" cy="50" r="40" fill="none" stroke="#f0f0f0" strokeWidth="12" />
-                    {/* Promoters segment (green) - 54% = 194.4 degrees }
+                    {/* Promoters segment (green) - 54% = 194.4 degrees */}
                     <circle 
                       cx="50" cy="50" r="40" 
                       fill="none" 
@@ -335,7 +376,7 @@ export default function Dashboard() {
                       strokeDashoffset="0"
                       strokeLinecap="round"
                     />
-                    {/* Detractors segment (red) - 27% }
+                    {/* Detractors segment (red) - 27% */}
                     <circle 
                       cx="50" cy="50" r="40" 
                       fill="none" 
@@ -345,7 +386,7 @@ export default function Dashboard() {
                       strokeDashoffset="-135.7"
                       strokeLinecap="round"
                     />
-                    {/* Passives segment (yellow) - 19% }
+                    {/* Passives segment (yellow) - 19% */}
                     <circle 
                       cx="50" cy="50" r="40" 
                       fill="none" 
@@ -356,13 +397,12 @@ export default function Dashboard() {
                       strokeLinecap="round"
                     />
                   </svg>
-                  {/* Center content }
+                  {/* Center content */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className="text-4xl font-light text-[#4A4A4A]">50</span>
-                    
                   </div>
                 </div>
-                {/* Legend }
+                {/* Legend */}
                 <div className="w-full space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">

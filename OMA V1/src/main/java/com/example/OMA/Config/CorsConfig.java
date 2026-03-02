@@ -13,28 +13,33 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
 
-    // @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:3000}")
-    // @Value("${app.cors.allowed-origins}")
-     @Value("${app.cors.allowed-origins:http}")
-    private List<String> allowedOrigins;
+    @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000}")
+    private String allowedOriginsStr;
 
     @Bean
     public CorsFilter corsFilter() {
         CorsConfiguration corsConfiguration = new CorsConfiguration();
-        //m - Allow only frontend domain
+        
+        // Parse allowed origins from config (handle spaces)
+        List<String> allowedOrigins = Arrays.asList(allowedOriginsStr.split(","));
+        for (int i = 0; i < allowedOrigins.size(); i++) {
+            allowedOrigins.set(i, allowedOrigins.get(i).trim());
+        }
         corsConfiguration.setAllowedOrigins(allowedOrigins); 
 
-        //m - set allow header and expose header
-        corsConfiguration.setAllowedHeaders(List.of("content-type"));
+        // Allow ALL headers including Authorization for JWT
+        corsConfiguration.setAllowedHeaders(Arrays.asList("*"));
 
-        corsConfiguration.setExposedHeaders(List.of());
+        // Expose Authorization and Content-Type headers
+        corsConfiguration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
 
+        // Allow credentials (cookies, auth headers)
         corsConfiguration.setAllowCredentials(true);
 
-        //m - set allowed methods
-        corsConfiguration.setAllowedMethods(Arrays.asList("GET", "POST", "OPTIONS"));
+        // Allow all common HTTP methods
+        corsConfiguration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
 
-        //m - cache
+        // Cache preflight requests for 1 hour
         corsConfiguration.setMaxAge(3600L);
         
         UrlBasedCorsConfigurationSource urlBasedCorsConfigurationSource = new UrlBasedCorsConfigurationSource();
@@ -43,3 +48,4 @@ public class CorsConfig {
         return new CorsFilter(urlBasedCorsConfigurationSource);
     }
 }
+

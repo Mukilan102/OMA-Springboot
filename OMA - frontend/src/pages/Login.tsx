@@ -6,20 +6,87 @@ import { Label } from "../components/ui/label";
 
 import logo from "../assets/logo.png";
 import "../styles/login-background.css";
+import apiClient from "../config/api";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    navigate("/home");
-  };
+  // Check if user is already logged in
+  useEffect(() => {
+    const checkIfAlreadyLoggedIn = async () => {
+      try {
+        // Attempt to call an authenticated endpoint
+        const response = await apiClient.fetch("/survey/survey_score");
+        
+        // If response is 200, user is already authenticated
+        if (response.status === 200) {
+          // User already logged in, redirect to dashboard
+          navigate("/dashboard");
+          return;
+        }
+      } catch (err) {
+        // User not logged in, stay on login page
+      }
+    };
 
-  const handleSSO = () => {
-    navigate("/home");
+    checkIfAlreadyLoggedIn();
+  }, [navigate]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    try {
+      const response = await apiClient.fetch("/credential/login", {
+        method: "POST",
+        body: JSON.stringify({
+          username,
+          password
+        })
+      });
+
+      // Handle different response statuses
+      if (response.status === 429) {
+        // Rate limited
+        const errorData = await response.json();
+        setError(errorData.message || "Too many login attempts. Please try again in 1 minute.");
+        setIsLoading(false);
+        return;
+      }
+
+      if (response.status === 401) {
+        // Unauthorized (wrong credentials)
+        setError("Invalid username or password.");
+        setIsLoading(false);
+        return;
+      }
+
+      if (response.status === 200) {
+        // Success - parse response and navigate to dashboard
+        const responseData = await response.json();
+        
+        // Small delay to ensure cookie is set
+        setTimeout(() => {
+          navigate("/dashboard");
+        }, 100);
+        return;
+      }
+
+      // Other errors
+      const errorText = await response.text();
+      setError(errorText || "Login failed. Please try again.");
+      setIsLoading(false);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "An error occurred during login";
+      setError(errorMsg);
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -96,9 +163,9 @@ export default function Login() {
   }, []);
 
   return (
-    <div className="flex h-screen w-full">
-      {/* Left Side - Premium Animated Background with Logo */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+    <div className="relative flex flex-col lg:flex-row h-screen w-full">
+      {/* Full-screen animated background (mobile) / Left half (desktop) */}
+      <div className="absolute inset-0 lg:relative lg:w-1/2 overflow-hidden">
         <div className="login-background">
           {/* Grid Overlay */}
           <div className="grid-overlay" />
@@ -119,48 +186,47 @@ export default function Login() {
           <img
             src={logo}
             alt="OMA Tool Logo"
-            className="h-32 w-auto mb-6 drop-shadow-2xl animate-fade-in-down"
+            className="h-16 sm:h-20 lg:h-32 w-auto mb-2 lg:mb-6 drop-shadow-2xl animate-fade-in-down"
             style={{ filter: 'drop-shadow(0 0 30px rgba(99, 179, 237, 0.5))' }}
           />
-          <h1 className="text-white text-6xl font-light tracking-wider animate-fade-in-up animate-delay-200"
+          <h1 className="text-white text-3xl sm:text-4xl lg:text-6xl font-light tracking-wider animate-fade-in-up animate-delay-200"
               style={{ textShadow: '0 0 40px rgba(99, 179, 237, 0.6), 0 0 20px rgba(99, 179, 237, 0.4)' }}>
-            OMA Tool
+            OMA
           </h1>
         </div>
       </div>
 
-      {/* Right Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center bg-white p-8">
-        <div className="w-full max-w-md space-y-8 animate-fade-in-up">
-          {/* Mobile Logo */}
-          <div className="lg:hidden text-center mb-8 flex flex-col items-center">
-            <img
-              src={logo}
-              alt="OMA Tool Logo"
-              className="h-24 w-auto mb-4"
-            />
-            <h1 className="text-4xl font-light tracking-wider text-[#002D72]">
-              OMA Tool
-            </h1>
-          </div>
+      {/* Mobile: logo area spacer so form doesn't overlap the logo */}
+      <div className="h-44 sm:h-52 lg:hidden flex-shrink-0" />
 
-          <div className="space-y-2 animate-fade-in-up animate-delay-100">
-            <h2 className="text-3xl font-light text-[#002D72]">Welcome back</h2>
-            <p className="text-[#4A4A4A]">Sign in to your account to continue</p>
+      {/* Right Side / Bottom - Login Form */}
+      <div className="relative z-10 flex-1 flex items-start lg:items-center justify-center px-6 pt-6 pb-8 sm:p-8 overflow-y-auto">
+        <div className="w-full max-w-md space-y-5 sm:space-y-8 animate-fade-in-up bg-white/90 backdrop-blur-sm rounded-2xl p-6 sm:p-8 lg:bg-white lg:backdrop-blur-none lg:rounded-none lg:shadow-none shadow-xl">
+
+          <div className="space-y-2 sm:items-centeranimate-fade-in-up animate-delay-100">
+            <h2 className="text-2xl sm:text-3xl font-light text-[#002D72]">Welcome back</h2>
+            <p className="text-sm sm:text-base text-[#4A4A4A]">Sign in to your account to continue</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6 animate-fade-in-up animate-delay-200">
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                {error}
+              </div>
+            )}
+            
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-[#4A4A4A]">
-                Email
+              <Label htmlFor="username" className="text-[#4A4A4A]">
+                Username
               </Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="you@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text"
+                placeholder="your.username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
+                disabled={isLoading}
                 className="h-12 border-gray-300 focus:border-[#002D72] focus:ring-[#002D72]"
               />
             </div>
@@ -176,45 +242,21 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={isLoading}
                 className="h-12 border-gray-300 focus:border-[#002D72] focus:ring-[#002D72]"
               />
             </div>
 
-            <div className="flex items-center justify-end">
-              <button
-                type="button"
-                className="text-sm text-[#4A4A4A] hover:text-[#002D72] transition-colors"
-              >
-                Forgot Password?
-              </button>
-            </div>
+            
 
             <Button
               type="submit"
-              className="w-full h-12 bg-[#002D72] hover:bg-[#001f52] text-white"
+              disabled={isLoading}
+              className="w-full h-12 bg-[#002D72] hover:bg-[#001f52] text-white disabled:opacity-50"
             >
-              Sign In
+              {isLoading ? "Signing in..." : "Sign In"}
             </Button>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-[#4A4A4A]">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleSSO}
-              className="w-full h-12 border-2 border-gray-300 hover:border-[#002D72] hover:bg-gray-50"
-            >
-              Sign in with SSO
-            </Button>
           </form>
         </div>
       </div>

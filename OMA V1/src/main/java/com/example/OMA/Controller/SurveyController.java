@@ -63,7 +63,8 @@ public class SurveyController {
             Map<String, Object> verificationResult = recaptchaService.verifyToken(recaptchaToken);
             
             // Check if reCAPTCHA verification was successful with acceptable score
-            if (!recaptchaService.isValidScore(verificationResult, 0.5)) {
+            // Uses configurable threshold from recaptcha.score.threshold property
+            if (!recaptchaService.isValidScore(verificationResult)) {
                 Map<String, Object> err = new HashMap<>();
                 err.put("success", false);
                 err.put("message", "reCAPTCHA verification failed - Bot detected");

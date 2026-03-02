@@ -30,7 +30,7 @@ public class MainQuestion {
     @Column(name = "question_text", nullable = false, columnDefinition = "TEXT")
     private String questionText;
  
-    @Column(name = "question_type")
+    @Column(name = "question_type", nullable = false)
     private String questionType;
  
     @Column(name = "weight")

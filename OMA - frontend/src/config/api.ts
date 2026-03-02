@@ -4,9 +4,9 @@
  * Development: Uses VITE_API_BASE_URL from .env.development (proxied by Vite)
  * Production: Uses VITE_API_BASE_URL from .env.production (full URL to backend)
  *
- * This abstraction allows seamless switching between:
- * - Development: http://localhost:8080 (via Vite proxy)
- * - Production: https://api.yourdomain.com (direct to backend)
+ * Authentication: Uses httpOnly cookies for JWT tokens
+ * Credentials are sent automatically with each request (credentials: 'include')
+ * No manual token handling needed - more secure than localStorage
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -40,6 +40,11 @@ export const apiClient = {
       headers['Content-Type'] = 'application/json';
     }
 
+    // IMPORTANT: Always include credentials so httpOnly cookies are sent
+    if (!fetchOptions.credentials) {
+      fetchOptions.credentials = 'include';
+    }
+
     fetchOptions.headers = headers;
 
     // Add timeout capability
@@ -61,3 +66,4 @@ export const apiClient = {
 };
 
 export default apiClient;
+

@@ -14,12 +14,17 @@ F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Repository\SurveyRespo
 F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\DTO\SaveAnswerDTO.java
 F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Model\Credentials.java
 F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Service\CategoryService.java
+F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\DTO\BertResponse.java
 F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\DTO\SubQuestionResponseDTO.java
 F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\DTO\SurveySubmissionDTO.java
 F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\OmaApplication.java
+F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Security\JwtAuthenticationFilter.java
 F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Service\RecaptchaService.java
 F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Config\CacheConfig.java
+F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Config\EnvironmentValidator.java
+F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Util\RateLimitingUtil.java
 F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Controller\SurveyController.java
+F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Util\JwtUtil.java
 F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Repository\SubQuestionRepo.java
 F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Service\CredentialService.java
 F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Repository\MainQuestionRepo.java
@@ -28,7 +33,6 @@ F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Config\CacheWarmer.jav
 F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Repository\OptionRepo.java
 F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\DTO\MainQuestionResponseDTO.java
 F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Model\Option.java
-F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Service\TestFreeText.java
 F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Model\MainQuestion.java
 F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\DTO\OptionResponseDTO.java
 F:\OMA - FB _1\OMAv1\OMA V1\src\main\java\com\example\OMA\Model\SurveyResponse.java
