@@ -40,7 +40,7 @@ export default function TermsOfService() {
         <p className="text-sm text-gray-500">Last updated: [Date]</p>
 
         <section className="bg-white rounded-2xl shadow-md px-8 py-8 space-y-8 text-[#4A4A4A] leading-relaxed">
-          {/* 1 — Acceptance */}
+          {/* 1 - Acceptance */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">1. Acceptance of Terms</h2>
             <p>
@@ -59,7 +59,7 @@ export default function TermsOfService() {
             </p>
           </div>
 
-          {/* 2 — Description of Service */}
+          {/* 2 - Description of Service */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">2. Description of Service</h2>
             <p>
@@ -77,7 +77,7 @@ export default function TermsOfService() {
             </p>
           </div>
 
-          {/* 3 — User Obligations */}
+          {/* 3 - User Obligations */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">3. User Obligations</h2>
             <p>By using the Platform, you agree to:</p>
@@ -109,7 +109,7 @@ export default function TermsOfService() {
             </p>
           </div>
 
-          {/* 4 — Intellectual Property */}
+          {/* 4 - Intellectual Property */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">4. Intellectual Property</h2>
             <p>
@@ -128,7 +128,7 @@ export default function TermsOfService() {
             </p>
           </div>
 
-          {/* 5 — Anonymity & Data Use */}
+          {/* 5 - Anonymity & Data Use */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               5. Anonymity &amp; Data Use
@@ -149,7 +149,7 @@ export default function TermsOfService() {
             </p>
           </div>
 
-          {/* 6 — Automated Processing */}
+          {/* 6 - Automated Processing */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               6. Automated Analytical Processing
@@ -167,7 +167,7 @@ export default function TermsOfService() {
             </p>
           </div>
 
-          {/* 7 — Disclaimer of Warranties */}
+          {/* 7 - Disclaimer of Warranties */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               7. Disclaimer of Warranties
@@ -186,7 +186,7 @@ export default function TermsOfService() {
             </p>
           </div>
 
-          {/* 8 — Limitation of Liability */}
+          {/* 8 - Limitation of Liability */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               8. Limitation of Liability
@@ -213,7 +213,7 @@ export default function TermsOfService() {
             </p>
           </div>
 
-          {/* 9 — Indemnification */}
+          {/* 9 - Indemnification */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">9. Indemnification</h2>
             <p>
@@ -225,7 +225,7 @@ export default function TermsOfService() {
             </p>
           </div>
 
-          {/* 10 — Third-Party Services */}
+          {/* 10 - Third-Party Services */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               10. Third-Party Services
@@ -239,7 +239,7 @@ export default function TermsOfService() {
             </p>
           </div>
 
-          {/* 11 — Modifications */}
+          {/* 11 - Modifications */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               11. Modifications to These Terms
@@ -254,7 +254,7 @@ export default function TermsOfService() {
             </p>
           </div>
 
-          {/* 12 — Severability */}
+          {/* 12 - Severability */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">12. Severability</h2>
             <p>
@@ -265,7 +265,7 @@ export default function TermsOfService() {
             </p>
           </div>
 
-          {/* 13 — Governing Law */}
+          {/* 13 - Governing Law */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               13. Governing Law &amp; Jurisdiction
@@ -279,7 +279,7 @@ export default function TermsOfService() {
             </p>
           </div>
 
-          {/* 14 — Contact */}
+          {/* 14 - Contact */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">14. Contact Information</h2>
             <p>

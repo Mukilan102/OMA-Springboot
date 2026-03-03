@@ -135,7 +135,7 @@ function loadSavedPosition(): { categoryIndex: number; questionIndex: number } |
 }
 
 function clearSurveyStorage() {
-  // Clear answer data and progress — but intentionally KEEP LS_SESSION_ID and the
+  // Clear answer data and progress - but intentionally KEEP LS_SESSION_ID and the
   // session cookie so the DB can still identify this browser on future visits and
   // return submitted:true, blocking re-submission even if LS_SUBMITTED is cleared.
   localStorage.removeItem(LS_RESPONSES);
@@ -199,7 +199,7 @@ export default function Survey() {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [currentCategoryIndex, currentQuestionIndex]);
 
-  // ── Navigator tour: full motion sequence (scroll → color pulse → done) — mobile only ──
+  // ── Navigator tour: full motion sequence (scroll → color pulse → done) - mobile only ──
   useEffect(() => {
     if (!showNavTour || !navStripRef.current) return;
     // Only run on small screens (< 768px); on desktop the scrollbar is visible and strip is spacious
@@ -251,7 +251,7 @@ export default function Survey() {
     localStorage.setItem(LS_TOUR_DONE, "true");
   };
 
-  // ── Autosave hook — event-driven, full-state, failure-safe ──
+  // ── Autosave hook - event-driven, full-state, failure-safe ──
   const { triggerSave, seedSnapshot } = useAutoSave({
     sessionId: sessionId.current,
     responses,
@@ -282,7 +282,7 @@ export default function Survey() {
       .then(async (data: SurveyCategory[]) => {
         setSurveyData(data);
 
-        // 1️⃣ ALWAYS check DB first — session ID is the authoritative submitted gate.
+        // 1️⃣ ALWAYS check DB first - session ID is the authoritative submitted gate.
         //    This prevents someone from clearing LS_SUBMITTED and retaking the survey,
         //    because the DB flag is set server-side and cannot be tampered with client-side.
         try {
@@ -315,21 +315,21 @@ export default function Survey() {
             }
           }
         } catch {
-          // DB unreachable — fall back to localStorage so the user isn't blocked offline
+          // DB unreachable - fall back to localStorage so the user isn't blocked offline
         }
 
-        // 2️⃣ DB check passed (or offline) — use localStorage responses if present
+        // 2️⃣ DB check passed (or offline) - use localStorage responses if present
         const savedResponses = loadSavedResponses();
         if (Object.keys(savedResponses).length > 0) {
           setResponses(savedResponses);
-          // Don't seed snapshot here — localStorage data may not be on the server yet,
+          // Don't seed snapshot here - localStorage data may not be on the server yet,
           // so the next trigger will sync it up.
           restorePosition(data);
           setLoading(false);
           return;
         }
 
-        // 3️⃣ Nothing anywhere — fresh start
+        // 3️⃣ Nothing anywhere - fresh start
         restorePosition(data);
         setLoading(false);
       })
@@ -356,7 +356,7 @@ export default function Survey() {
 
   // localStorage mirroring is now handled inside useAutoSave hook
 
-  // Unanswered questions — drives the completion dialog and count
+  // Unanswered questions - drives the completion dialog and count
   const unansweredQuestions = useMemo(() => {
     return allQuestions.filter(
       (q) => !isQuestionAnswered(q, responses[String(q.main_question_id)])
@@ -482,10 +482,10 @@ export default function Survey() {
     if (isRankQuestion && !rankReordered) {
       const existingRankAnswer = responses[responseKey];
       if (existingRankAnswer) {
-        // Already answered on a previous visit — no dialog needed, just navigate
+        // Already answered on a previous visit - no dialog needed, just navigate
         // Fall through to normal navigation below
       } else {
-        // First time hitting Next without reordering — auto-record default & ask
+        // First time hitting Next without reordering - auto-record default & ask
         const defaultOrder = currentQuestion.options.map((o) => o.option_id);
         setResponses((prev) => ({ ...prev, [responseKey]: defaultOrder }));
         setRankConfirmOpen(true);
@@ -508,7 +508,7 @@ export default function Survey() {
   };
 
   const doNavigateNext = () => {
-    // Trigger autosave — will only POST if responses actually changed
+    // Trigger autosave - will only POST if responses actually changed
     triggerSave();
 
     if (currentQuestionIndex < currentCategory.questions.length - 1) {
@@ -603,7 +603,7 @@ export default function Survey() {
               {saveStatus === "offline" && (
                 <>
                   <WifiOff className="w-3.5 h-3.5 text-amber-500" />
-                  <span className="text-amber-600">Offline — saved locally</span>
+                  <span className="text-amber-600">Offline - saved locally</span>
                 </>
               )}
               {saveStatus === "saving" && (
@@ -650,7 +650,7 @@ export default function Survey() {
                     key={q.main_question_id}
                     type="button"
                     onClick={() => { if (!showNavTour) navigateToGlobalIndex(globalIdx); }}
-                    title={`Q${globalIdx + 1}: ${catName} — ${q.question_text.slice(0, 60)}${q.question_text.length > 60 ? '…' : ''}`}
+                    title={`Q${globalIdx + 1}: ${catName} - ${q.question_text.slice(0, 60)}${q.question_text.length > 60 ? '…' : ''}`}
                     className={`flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 md:w-9 md:h-9 rounded-full text-[10px] sm:text-[11px] md:text-[14px] font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#008489]/40
                       ${isCurrent
                         ? 'bg-[#002D72] text-white ring-2 ring-[#002D72]/30 scale-110 md:scale-125'
@@ -799,7 +799,7 @@ export default function Survey() {
             <AlertDialogCancel className="rounded-xl border-gray-200 text-[#4A4A4A] hover:bg-gray-50">
               Go Back
             </AlertDialogCancel>
-            {/* Skip — remove the auto-recorded default and move forward unanswered */}
+            {/* Skip - remove the auto-recorded default and move forward unanswered */}
             <Button
               variant="outline"
               onClick={() => {

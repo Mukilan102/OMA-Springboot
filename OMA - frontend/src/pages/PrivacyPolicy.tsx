@@ -39,7 +39,7 @@ export default function PrivacyPolicy() {
         <p className="text-sm text-gray-500">Last updated: [Date]</p>
 
         <section className="bg-white rounded-2xl shadow-md px-8 py-8 space-y-8 text-[#4A4A4A] leading-relaxed">
-          {/* 1 — Data Controller */}
+          {/* 1 - Data Controller */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">1. Data Controller</h2>
             <p>
@@ -66,7 +66,7 @@ export default function PrivacyPolicy() {
             </p>
           </div>
 
-          {/* 2 — Scope */}
+          {/* 2 - Scope */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               2. Scope &amp; Application
@@ -86,7 +86,7 @@ export default function PrivacyPolicy() {
             </p>
           </div>
 
-          {/* 3 — Data We Collect */}
+          {/* 3 - Data We Collect */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">3. Data We Collect</h2>
             <p>
@@ -95,24 +95,24 @@ export default function PrivacyPolicy() {
             </p>
             <ul className="list-disc pl-6 space-y-1">
               <li>
-                <strong>Survey responses</strong> — multiple-choice selections, rankings, and
+                <strong>Survey responses</strong> - multiple-choice selections, rankings, and
                 free-text answers
               </li>
               <li>
-                <strong>Random session identifier</strong> — a UUID generated at the start of
+                <strong>Random session identifier</strong> - a UUID generated at the start of
                 each session, with no link to the respondent&apos;s identity
               </li>
               <li>
-                <strong>Timestamps</strong> — session start time and submission time
+                <strong>Timestamps</strong> - session start time and submission time
               </li>
               <li>
-                <strong>Consent acknowledgement</strong> — a record confirming that consent
+                <strong>Consent acknowledgement</strong> - a record confirming that consent
                 was provided, together with a timestamp
               </li>
             </ul>
           </div>
 
-          {/* 4 — Data We Do Not Collect */}
+          {/* 4 - Data We Do Not Collect */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               4. Data We Do Not Intentionally Collect
@@ -138,7 +138,7 @@ export default function PrivacyPolicy() {
             </p>
           </div>
 
-          {/* 5 — Legal Basis */}
+          {/* 5 - Legal Basis */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               5. Legal Basis for Processing
@@ -175,7 +175,7 @@ export default function PrivacyPolicy() {
             </p>
           </div>
 
-          {/* 6 — Purpose of Processing */}
+          {/* 6 - Purpose of Processing */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               6. Purpose of Processing
@@ -200,7 +200,7 @@ export default function PrivacyPolicy() {
             </p>
           </div>
 
-          {/* 7 — AI & Automated Processing */}
+          {/* 7 - AI & Automated Processing */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               7. Automated Analytical Processing &amp; AI
@@ -236,7 +236,7 @@ export default function PrivacyPolicy() {
             </ul>
           </div>
 
-          {/* 8 — Data Retention */}
+          {/* 8 - Data Retention */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">8. Data Retention</h2>
             <p>
@@ -265,7 +265,7 @@ export default function PrivacyPolicy() {
             </p>
           </div>
 
-          {/* 9 — Data Sharing & Processors */}
+          {/* 9 - Data Sharing & Processors */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               9. Data Sharing &amp; Sub-Processors
@@ -277,21 +277,21 @@ export default function PrivacyPolicy() {
             </p>
             <ul className="list-disc pl-6 space-y-1">
               <li>
-                <strong>Amazon Web Services (AWS)</strong> — The Platform is hosted on AWS
+                <strong>Amazon Web Services (AWS)</strong> - The Platform is hosted on AWS
                 infrastructure. AWS acts as a data processor under a Data Processing
                 Agreement incorporating appropriate contractual safeguards. Data may be
                 stored in AWS data centres in the{" "}
                 <strong>{AWS_HOSTING_REGION}</strong> region.
               </li>
               <li>
-                <strong>Client organisations</strong> — Aggregated and anonymised
+                <strong>Client organisations</strong> - Aggregated and anonymised
                 organisational reports may be shared with the commissioning organisation.
                 Such reports do not contain data that identifies individual respondents.
               </li>
             </ul>
           </div>
 
-          {/* 10 — International Transfers */}
+          {/* 10 - International Transfers */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               10. International Data Transfers
@@ -323,7 +323,7 @@ export default function PrivacyPolicy() {
             </p>
           </div>
 
-          {/* 11 — Your Rights */}
+          {/* 11 - Your Rights */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               11. Your Rights Under the GDPR
@@ -334,28 +334,28 @@ export default function PrivacyPolicy() {
             </p>
             <ul className="list-disc pl-6 space-y-2">
               <li>
-                <strong>Right of Access</strong> (Article 15) — Request a copy of the data
+                <strong>Right of Access</strong> (Article 15) - Request a copy of the data
                 associated with your session ID.
               </li>
               <li>
-                <strong>Right to Erasure</strong> (Article 17) — Request the deletion of
+                <strong>Right to Erasure</strong> (Article 17) - Request the deletion of
                 data linked to your session ID.
               </li>
               <li>
-                <strong>Right to Data Portability</strong> (Article 20) — Receive your data
+                <strong>Right to Data Portability</strong> (Article 20) - Receive your data
                 in a structured, commonly used, and machine-readable format.
               </li>
               <li>
-                <strong>Right to Restrict Processing</strong> (Article 18) — Request that
+                <strong>Right to Restrict Processing</strong> (Article 18) - Request that
                 processing of your data be restricted in certain circumstances.
               </li>
               <li>
-                <strong>Right to Withdraw Consent</strong> (Article 7(3)) — Withdraw your
+                <strong>Right to Withdraw Consent</strong> (Article 7(3)) - Withdraw your
                 consent at any time, without affecting the lawfulness of processing based on
                 consent before its withdrawal.
               </li>
               <li>
-                <strong>Right to Lodge a Complaint</strong> — You have the right to lodge a
+                <strong>Right to Lodge a Complaint</strong> - You have the right to lodge a
                 complaint with a supervisory authority, in particular in the EU Member State
                 of your habitual residence, place of work, or place of the alleged
                 infringement.
@@ -383,7 +383,7 @@ export default function PrivacyPolicy() {
             </p>
           </div>
 
-          {/* 12 — Data Security */}
+          {/* 12 - Data Security */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">12. Data Security</h2>
             <p>
@@ -393,23 +393,23 @@ export default function PrivacyPolicy() {
             </p>
             <ul className="list-disc pl-6 space-y-1">
               <li>
-                <strong>Encryption in transit</strong> — All data transmitted between your
+                <strong>Encryption in transit</strong> - All data transmitted between your
                 browser and the Platform is encrypted using HTTPS/TLS protocols.
               </li>
               <li>
-                <strong>Encryption at rest</strong> — Data stored within the Platform
+                <strong>Encryption at rest</strong> - Data stored within the Platform
                 infrastructure is encrypted using industry-standard encryption methods.
               </li>
               <li>
-                <strong>Role-based access control</strong> — Access to data is restricted to
+                <strong>Role-based access control</strong> - Access to data is restricted to
                 authorised personnel on a need-to-know basis.
               </li>
               <li>
-                <strong>Restricted personnel access</strong> — Only a limited number of
+                <strong>Restricted personnel access</strong> - Only a limited number of
                 authorised individuals have access to identifiable session data.
               </li>
               <li>
-                <strong>Industry-standard safeguards</strong> — We employ security
+                <strong>Industry-standard safeguards</strong> - We employ security
                 practices consistent with recognised industry standards to protect the
                 confidentiality, integrity, and availability of data.
               </li>
@@ -421,7 +421,7 @@ export default function PrivacyPolicy() {
             </p>
           </div>
 
-          {/* 13 — Cookies */}
+          {/* 13 - Cookies */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               13. Cookies &amp; Similar Technologies
@@ -433,19 +433,19 @@ export default function PrivacyPolicy() {
             </p>
             <ul className="list-disc pl-6 space-y-1">
               <li>
-                <strong>Session cookie</strong> — A temporary cookie used solely to maintain
+                <strong>Session cookie</strong> - A temporary cookie used solely to maintain
                 survey continuity during an active session. This cookie is deleted when the
                 browser session ends.
               </li>
               <li>
-                <strong>Authentication cookie</strong> — An httpOnly cookie used exclusively
+                <strong>Authentication cookie</strong> - An httpOnly cookie used exclusively
                 for administrative access to the Platform. This cookie is not set for
                 survey respondents.
               </li>
             </ul>
           </div>
 
-          {/* 14 — Children */}
+          {/* 14 - Children */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               14. Children&apos;s Privacy
@@ -458,7 +458,7 @@ export default function PrivacyPolicy() {
             </p>
           </div>
 
-          {/* 15 — Changes */}
+          {/* 15 - Changes */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               15. Changes to This Privacy Policy
@@ -473,7 +473,7 @@ export default function PrivacyPolicy() {
             </p>
           </div>
 
-          {/* 16 — Contact */}
+          {/* 16 - Contact */}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold text-[#002D72]">
               16. Contact &amp; Complaints

@@ -17,11 +17,11 @@ import type { ResponseValue } from "../types/survey";
  *    next trigger.
  *
  * Triggers (all event-based, no polling/intervals):
- *  1. `triggerSave()`       — called by the component on navigation (next/prev/strip)
- *  2. answer change          — detected via `responses` ref diff, debounced ~3 s
- *  3. visibility change      — `visibilitychange` event (tab hide / close)
- *  4. `beforeunload`         — last-chance save via `navigator.sendBeacon`
- *  5. `online`               — network recovery after offline period
+ *  1. `triggerSave()`       - called by the component on navigation (next/prev/strip)
+ *  2. answer change          - detected via `responses` ref diff, debounced ~3 s
+ *  3. visibility change      - `visibilitychange` event (tab hide / close)
+ *  4. `beforeunload`         - last-chance save via `navigator.sendBeacon`
+ *  5. `online`               - network recovery after offline period
  */
 
 const LS_RESPONSES = "oma_survey_responses";
@@ -68,7 +68,7 @@ export function useAutoSave({
         JSON.stringify({ categoryIndex: currentCategoryIndex, questionIndex: currentQuestionIndex })
       );
     } catch {
-      // localStorage full or unavailable — silently ignore
+      // localStorage full or unavailable - silently ignore
     }
   }, [responses, currentCategoryIndex, currentQuestionIndex, enabled]);
 
@@ -146,7 +146,7 @@ export function useAutoSave({
     [sessionId, onStatusChange]
   );
 
-  // ── 1. Imperative trigger — called by Survey on navigation (next / prev / strip) ──
+  // ── 1. Imperative trigger - called by Survey on navigation (next / prev / strip) ──
   const triggerSave = useCallback(() => {
     // Cancel any pending debounce so we don't double-save
     if (debounceTimer.current) {
@@ -178,7 +178,7 @@ export function useAutoSave({
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === "hidden") {
-        // Tab is being hidden — try beacon for reliability
+        // Tab is being hidden - try beacon for reliability
         doSave(true);
       }
     };
@@ -186,7 +186,7 @@ export function useAutoSave({
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [doSave]);
 
-  // ── 4. Before unload — absolute last chance ──
+  // ── 4. Before unload - absolute last chance ──
   useEffect(() => {
     const handleUnload = () => {
       doSave(true);
@@ -195,7 +195,7 @@ export function useAutoSave({
     return () => window.removeEventListener("beforeunload", handleUnload);
   }, [doSave]);
 
-  // ── 5. Online recovery — flush if we went offline and came back ──
+  // ── 5. Online recovery - flush if we went offline and came back ──
   useEffect(() => {
     const handleOnline = () => {
       onStatusChange?.("idle");

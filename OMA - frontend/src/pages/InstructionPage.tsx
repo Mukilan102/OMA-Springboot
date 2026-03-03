@@ -259,7 +259,7 @@ export default function InstructionPage() {
           </ul>
 
           <p className="text-[#4A4A4A] leading-relaxed pt-1">
-            The goal is to evaluate organisational maturity — not to rate individuals — and
+            The goal is to evaluate organisational maturity - not to rate individuals - and
             to gain a clear, collective view of our organisation's leadership strengths and
             development priorities.
           </p>

@@ -49,7 +49,7 @@ public class SurveyController {
     }
 
     /**
-     * Bulk save-progress endpoint — receives the FULL responses map.
+     * Bulk save-progress endpoint - receives the FULL responses map.
      * Idempotent: replaces all stored responses for this session with the payload.
      * Called by the frontend autosave hook on navigation, answer change, and visibility events.
      */
@@ -113,7 +113,7 @@ public class SurveyController {
         }
     }
 
-    /** Final submit — stamps submittedAt and re-saves all answers. */
+    /** Final submit - stamps submittedAt and re-saves all answers. */
     @PostMapping("/submit")
     public ResponseEntity<Map<String, Object>> submitSurvey(@RequestBody SurveySubmissionDTO dto) {
         try {

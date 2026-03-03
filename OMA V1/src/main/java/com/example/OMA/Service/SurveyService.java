@@ -61,7 +61,7 @@ public class SurveyService {
         responseRepo.deleteBySessionIdAndMainQuestionId(dto.getSessionId(), dto.getMainQuestionId());
         responseRepo.flush();
 
-        // Insert new answer row(s) — save each response explicitly
+        // Insert new answer row(s) - save each response explicitly
         List<SurveyResponse> rows = buildResponseRows(submission, dto.getMainQuestionId(), dto.getAnswer());
         responseRepo.saveAll(rows);
     }
@@ -69,7 +69,7 @@ public class SurveyService {
     /**
      * Bulk save-progress: replaces ALL stored responses for a session with the
      * full responses map from the frontend.
-     * Idempotent — multiple identical calls produce the same result.
+     * Idempotent - multiple identical calls produce the same result.
      * Does NOT touch submittedAt (that is the job of submitSurvey).
      */
     @Transactional

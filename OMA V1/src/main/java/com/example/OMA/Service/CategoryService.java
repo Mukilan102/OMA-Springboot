@@ -139,7 +139,7 @@ public class CategoryService {
                         ));
                     }
                 } else {
-                    // No sub-questions — attach options directly to the main question
+                    // No sub-questions - attach options directly to the main question
                     List<Option> mainOpts =
                             optionsByMainQId.getOrDefault(mq.getMainQuestionId(), Collections.emptyList());
  
