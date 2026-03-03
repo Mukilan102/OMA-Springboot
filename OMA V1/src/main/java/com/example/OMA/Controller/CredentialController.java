@@ -123,8 +123,33 @@ public class CredentialController {
     }
     
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletResponse response) {
+    public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
         try {
+            // Extract JWT token from cookies
+            Cookie[] cookies = request.getCookies();
+            String token = null;
+            
+            if (cookies != null) {
+                for (Cookie cookie : cookies) {
+                    if ("jwt".equals(cookie.getName())) {
+                        token = cookie.getValue();
+                        break;
+                    }
+                }
+            }
+            
+            // If no JWT token found, return 401
+            if (token == null || token.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("No JWT token found - already logged out");
+            }
+            
+            // Validate JWT token
+            if (!jwtUtil.validateToken(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Invalid JWT token");
+            }
+            
             // Clear JWT cookie by setting maxAge to 0
             Cookie jwtCookie = new Cookie("jwt", "");
             jwtCookie.setHttpOnly(true);
@@ -146,7 +171,41 @@ public class CredentialController {
     }
 
     @GetMapping("/check")
-    public String simple(){
-        return "success";
+    public ResponseEntity<?> checkAuth(HttpServletRequest request) {
+        try {
+            // Extract JWT token from cookies
+            Cookie[] cookies = request.getCookies();
+            String token = null;
+            
+            if (cookies != null) {
+                for (Cookie cookie : cookies) {
+                    if ("jwt".equals(cookie.getName())) {
+                        token = cookie.getValue();
+                        break;
+                    }
+                }
+            }
+            
+            // If no JWT token found, return 401
+            if (token == null || token.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("No JWT token found");
+            }
+            
+            // Validate JWT token
+            if (!jwtUtil.validateToken(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Invalid JWT token");
+            }
+            
+            // Token is valid
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Authenticated");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Authentication check failed");
+        }
     }
 }

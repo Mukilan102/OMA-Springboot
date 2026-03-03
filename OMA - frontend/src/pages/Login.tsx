@@ -49,8 +49,8 @@ export default function Login() {
   useEffect(() => {
     const checkIfAlreadyLoggedIn = async () => {
       try {
-        // Attempt to call an authenticated endpoint
-        const response = await apiClient.fetch("/survey/survey_score");
+        // Call lightweight auth check endpoint (much faster than /survey/survey_score)
+        const response = await apiClient.fetch("/credential/check");
         
         // If response is 200, user is already authenticated
         if (response.status === 200) {

@@ -94,14 +94,22 @@ export default function Dashboard() {
   const handleLogout = async () => {
     try {
       // Call logout endpoint to clear JWT cookie on backend
-      await apiClient.fetch("/credential/logout", {
-        method: "POST"
+      const response = await apiClient.fetch("/credential/logout", {
+        method: "POST",
+        credentials: "include"
       });
+      
+      // Wait for response to complete and cookie to be cleared
+      if (response.ok) {
+        // Add a small delay to ensure browser processes the Set-Cookie header
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
       
       // Navigate to login page after logout
       navigate("/login");
     } catch (err) {
       // Even if logout fails, still redirect to login
+      console.error("Logout error:", err);
       navigate("/login");
     }
   };
