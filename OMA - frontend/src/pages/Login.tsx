@@ -4,6 +4,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Clock } from "lucide-react";
+import { HeroBackground } from "../components/HeroBackground";
 
 import logo from "../assets/logo.png";
 import "../styles/login-background.css";
@@ -208,44 +209,41 @@ export default function Login() {
     <div className="relative flex flex-col lg:flex-row h-screen w-full">
       {/* Full-screen animated background (mobile) / Left half (desktop) */}
       <div className="absolute inset-0 lg:relative lg:w-1/2 overflow-hidden">
-        <div className="login-background">
-          {/* Grid Overlay */}
-          <div className="grid-overlay" />
-          
-          {/* Glowing Orbs */}
-          <div className="glow-orb glow-orb-1" />
-          <div className="glow-orb glow-orb-2" />
-          <div className="glow-orb glow-orb-3" />
-          
-          {/* Scan Line */}
-          <div className="scan-line" />
-          
-          {/* Animated Elements Container */}
-          <div ref={canvasRef} className="particles" />
-        </div>
+        <HeroBackground />
         
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center animate-fade-in">
+        <div className="absolute inset-0 z-20 hidden lg:flex flex-col items-center justify-center animate-fade-in">
           <img
             src={logo}
             alt="OMA Tool Logo"
             className="h-16 sm:h-20 lg:h-32 w-auto mb-2 lg:mb-6 drop-shadow-2xl animate-fade-in-down"
-            style={{ filter: 'drop-shadow(0 0 30px rgba(99, 179, 237, 0.5))' }}
           />
-          <h1 className="text-white text-3xl sm:text-4xl lg:text-6xl font-light tracking-wider animate-fade-in-up animate-delay-200"
-              style={{ textShadow: '0 0 40px rgba(99, 179, 237, 0.6), 0 0 20px rgba(99, 179, 237, 0.4)' }}>
+          <h1 className="text-white text-3xl sm:text-4xl lg:text-6xl font-light tracking-wider animate-fade-in-up"
+              style={{ textShadow: '0 0 20px rgba(0, 132, 137, 0.4)' }}>
             OMA
           </h1>
         </div>
       </div>
 
-      {/* Mobile: logo area spacer so form doesn't overlap the logo */}
-      <div className="h-44 sm:h-52 lg:hidden flex-shrink-0" />
+      {/* Mobile: logo area spacer - hidden on desktop */}
+      <div className="lg:hidden flex-shrink-0" />
 
       {/* Right Side / Bottom - Login Form */}
-      <div className="relative z-10 flex-1 flex items-start lg:items-center justify-center px-6 pt-6 pb-8 sm:p-8 overflow-y-auto">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 pt-6 pb-8 sm:p-8 overflow-y-auto">
+        {/* Logo for mobile - hidden on desktop */}
+        <div className="lg:hidden mb-6 text-center">
+          <img
+            src={logo}
+            alt="OMA Tool Logo"
+            className="h-12 sm:h-16 w-auto mx-auto mb-2 drop-shadow-lg"
+          />
+          <h1 className="text-[#002D72] text-2xl sm:text-3xl font-light tracking-wider">
+            OMA
+          </h1>
+        </div>
+
         <div className="w-full max-w-md space-y-5 sm:space-y-8 animate-fade-in-up bg-white/90 backdrop-blur-sm rounded-2xl p-6 sm:p-8 lg:bg-white lg:backdrop-blur-none lg:rounded-none lg:shadow-none shadow-xl">
 
-          <div className="space-y-2 sm:items-centeranimate-fade-in-up animate-delay-100">
+          <div className="space-y-2 sm:items-center animate-fade-in-up animate-delay-100">
             <h2 className="text-2xl sm:text-3xl font-light text-[#002D72]">Welcome back</h2>
             <p className="text-sm sm:text-base text-[#4A4A4A]">Sign in to your account to continue</p>
           </div>
@@ -275,7 +273,7 @@ export default function Login() {
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 disabled={isLoading}
-                className="h-12 border-gray-300 focus:border-[#002D72] focus:ring-[#002D72]"
+                className="h-12 border-gray-300 focus:border-[#008489] focus:ring-[#008489]"
               />
             </div>
 
@@ -291,7 +289,7 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
-                className="h-12 border-gray-300 focus:border-[#002D72] focus:ring-[#002D72]"
+                className="h-12 border-gray-300 focus:border-[#008489] focus:ring-[#008489]"
               />
             </div>
 
@@ -300,7 +298,7 @@ export default function Login() {
             <Button
               type="submit"
               disabled={isLoading || isRetryLocked}
-              className="w-full h-12 bg-[#002D72] hover:bg-[#001f52] text-white disabled:opacity-50"
+              className="w-full h-12 bg-[#008489] hover:bg-[#006b6f] text-white disabled:opacity-50"
             >
               {isLoading
                 ? "Signing in..."
