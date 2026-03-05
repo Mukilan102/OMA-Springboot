@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "../components/ui/button";
 import { Progress } from "../components/ui/progress";
+import { useNavigate } from "react-router";
 import apiClient from "../config/api";
 import {
   AlertDialog,
@@ -168,6 +169,7 @@ function isQuestionAnswered(question: SurveyQuestion, response: ResponseValue | 
 }
 
 export default function Survey() {
+  const navigate = useNavigate();
   const [surveyData, setSurveyData] = useState<SurveyCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -192,6 +194,16 @@ export default function Survey() {
 
   const sessionId = useRef(getOrCreateSessionId());
   const restoredPosition = useRef(false);
+
+  // ── Guard: Check if user came from instruction page ──
+  useEffect(() => {
+    // If gdpr_consent_at is not set in sessionStorage, user didn't click "Start Survey"
+    const consentTimestamp = sessionStorage.getItem("gdpr_consent_at");
+    if (!consentTimestamp) {
+      // Redirect to instruction page
+      navigate("/instructions", { replace: true });
+    }
+  }, [navigate]);
 
   // ── Reset rank-reorder tracking + scroll to top whenever the question changes ──
   useEffect(() => {

@@ -11,12 +11,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.Cookie;
+import org.springframework.web.client.RestClientException;
 
 import com.example.OMA.Model.Credentials;
 import com.example.OMA.Service.CredentialService;
 import com.example.OMA.Repository.CredentialsRepo;
 import com.example.OMA.Util.JwtUtil;
 import com.example.OMA.Util.RateLimitingUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,6 +27,9 @@ import java.util.Map;
 @RestController
 @RequestMapping("api/credential")
 public class CredentialController {
+    
+    private static final Logger logger = LoggerFactory.getLogger(CredentialController.class);
+    private static final String BERT_MODEL_URL = "http://localhost:8000/predict";
     
     private final CredentialService credentialService;
     private final CredentialsRepo credentialsRepo;
@@ -206,6 +212,67 @@ public class CredentialController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("Authentication check failed");
+        }
+    }
+
+    /**
+     * Health check endpoint - verifies system status including BERT model server
+     * Returns 200 OK with maintenance flag (never returns 5xx errors)
+     */
+    @GetMapping("/health")
+    public ResponseEntity<?> health() {
+        Map<String, Object> healthStatus = new HashMap<>();
+        
+        // Check BERT model server (with timeout and error handling)
+        boolean bertHealthy = checkBertHealth();
+        healthStatus.put("bertServer", bertHealthy ? "healthy" : "unavailable");
+        
+        // Always return 200 OK, just indicate status in body
+        healthStatus.put("status", bertHealthy ? "healthy" : "degraded");
+        healthStatus.put("maintenance", !bertHealthy);
+        healthStatus.put("estimatedMaintenanceMinutes", 30);
+        
+        return ResponseEntity.ok(healthStatus);
+    }
+
+    /**
+     * Check if BERT model server is reachable with timeout protection
+     * Returns false gracefully if server is unreachable or times out
+     */
+    private boolean checkBertHealth() {
+        try {
+            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            
+            // Create a factory with timeout
+            org.springframework.http.client.SimpleClientHttpRequestFactory factory = 
+                new org.springframework.http.client.SimpleClientHttpRequestFactory();
+            factory.setConnectTimeout(2000);  // 2 second connection timeout
+            factory.setReadTimeout(2000);     // 2 second read timeout
+            restTemplate.setRequestFactory(factory);
+            
+            Map<String, String> testRequest = new HashMap<>();
+            testRequest.put("text", "health");
+            
+            ResponseEntity<?> response = restTemplate.postForEntity(
+                    BERT_MODEL_URL, 
+                    testRequest, 
+                    String.class
+            );
+            
+            // Return true only if response is 2xx
+            return response.getStatusCode().is2xxSuccessful();
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            logger.debug("BERT server returned client error: {}", e.getStatusCode());
+            return false;
+        } catch (org.springframework.web.client.HttpServerErrorException e) {
+            logger.debug("BERT server returned server error: {}", e.getStatusCode());
+            return false;
+        } catch (org.springframework.web.client.ResourceAccessException e) {
+            logger.debug("BERT server connection failed: {}", e.getMessage());
+            return false;
+        } catch (Exception e) {
+            logger.debug("BERT health check error: {}", e.getMessage());
+            return false;
         }
     }
 }

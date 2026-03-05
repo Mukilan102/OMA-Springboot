@@ -392,7 +392,7 @@ public class SurveyService {
                 ResponseEntity<BertResponse> res = restTemplate.postForEntity(url, request, BertResponse.class);
                 BertResponse body = res.getBody();
                 BigDecimal stage = body.getPredicted_class_id();
-                // System.out.println(response.getFreeText() +" ------ "+stage + " ---- " + i++);
+                System.out.println(response.getFreeText() +" ------ "+stage + " ---- " );
                 categoryTotalScore.put(categoryId, categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(stage));
             }
 
