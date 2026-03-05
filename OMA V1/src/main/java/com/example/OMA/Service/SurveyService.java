@@ -13,10 +13,13 @@ import com.example.OMA.Repository.OptionRepo;
 import com.example.OMA.Repository.SurveyResponseRepo;
 import com.example.OMA.Repository.SurveySubmissionRepo;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -26,6 +29,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import javax.management.RuntimeErrorException;
 
 @Service
 public class SurveyService {
@@ -288,8 +293,11 @@ public class SurveyService {
     }
 
     public Map<Integer, BigDecimal> getAllResponse() {
-        // int i=0;
-        // int k=0;
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(3000); // 3 seconds
+        factory.setReadTimeout(3000);
+
+        RestTemplate restTemplate = new RestTemplate(factory);
         List<Option> optionScore = optionRepo.findAll();
         List<SurveyResponse> surveyResponse = responseRepo.findAll();
 
@@ -311,17 +319,25 @@ public class SurveyService {
                 categoryTotalScore.put(categoryId, categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(score));
             }
             else{
-                RestTemplate restTemplate = new RestTemplate();
                 String url = "http://localhost:8000/predict";
                 Map<String, String> request = new HashMap<>();
                 request.put("text", response.getFreeText());
-                ResponseEntity<BertResponse> res = restTemplate.postForEntity(url, request, BertResponse.class);
-                BertResponse body = res.getBody();
-                BigDecimal stage = body.getPredicted_class_id();
-                // System.out.println(response.getFreeText() +" ------ "+stage + " ---- " + i++);
-                categoryTotalScore.put(categoryId, categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(stage));
-            }
+                try {
+                    ResponseEntity<BertResponse> res =
+                            restTemplate.postForEntity(url, request, BertResponse.class);
 
+                    BertResponse body = res.getBody();
+                    BigDecimal stage = body.getPredicted_class_id();
+
+                    categoryTotalScore.put(categoryId,
+                            categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(stage));
+                } catch (Exception e) {
+                    throw new ResponseStatusException(
+                            HttpStatus.SERVICE_UNAVAILABLE,
+                            "Prediction service is not running. Start the ML service."
+                    );
+                }
+            }
             categoryCount.put(categoryId, categoryCount.getOrDefault(categoryId, 0)+1);
         }
 

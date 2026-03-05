@@ -63,7 +63,10 @@ export default function Dashboard() {
         const response = await apiClient.fetch("/survey/survey_score", {
           credentials: "include"
         });
-        
+        if (response.status === 503) {
+          setError("Prediction service is not running.");
+          return;
+        }
         // Check if user is unauthorized - redirect to login
         if (!response.ok || response.status === 401) {
           navigate("/login");
@@ -91,7 +94,9 @@ export default function Dashboard() {
         }
       } catch (err) {
         // If any error occurs during auth check, redirect to login to be safe
-        navigate("/login");
+        // navigate("/login");
+        console.error(err);
+        setError("Unable to load dashboard data. Please try again later.");
       } finally {
         setLoading(false);
       }
