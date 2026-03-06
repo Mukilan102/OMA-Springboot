@@ -1,4 +1,4 @@
-CREATE TABLE survey_submission (
+CREATE TABLE IF NOT EXISTS survey_submission (
     session_id VARCHAR(255) PRIMARY KEY,
     started_at TIMESTAMPTZ NOT NULL,
     submitted_at TIMESTAMPTZ,

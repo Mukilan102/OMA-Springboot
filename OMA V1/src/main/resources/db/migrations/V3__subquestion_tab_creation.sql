@@ -1,4 +1,4 @@
-CREATE TABLE sub_question (
+CREATE TABLE IF NOT EXISTS sub_question (
     sub_question_id SERIAL PRIMARY KEY,
     main_question_id INT NOT NULL,
     question_text TEXT NOT NULL,
