@@ -6,7 +6,7 @@ export function Footer() {
     <footer className="w-full border-t bg-white py-6">
       <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-6 md:flex-row">
         <p className="text-sm text-gray-500">
-          &copy; {new Date().getFullYear()} OMA. All rights reserved.
+          &copy; {new Date().getFullYear()} HARTS. All rights reserved.
         </p>
         <div className="flex gap-4 text-sm text-gray-500">
           <Link to="/privacy-policy" className="hover:text-gray-700 transition-colors">

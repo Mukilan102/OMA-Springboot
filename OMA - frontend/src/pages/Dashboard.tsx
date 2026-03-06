@@ -386,7 +386,8 @@ export default function Dashboard() {
                         <PolarRadiusAxis angle={90} domain={[0, 5]} tick={false} />
                         <Tooltip
                           content={<CustomRadarTooltip />}
-                          cursor={{ stroke: "#002D72", strokeWidth: 2 }}
+                          cursor={false}
+                          // cursor={{ stroke: "#002D72", strokeWidth: 2 }}
                           wrapperStyle={{ outline: "none" }}
                         />
                         <Radar

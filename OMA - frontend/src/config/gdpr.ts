@@ -21,22 +21,22 @@ export const DATA_CONTROLLER_NAME =
   import.meta.env.VITE_GDPR_DATA_CONTROLLER ?? "HARTS Consulting";
 
 export const DATA_CONTROLLER_EMAIL =
-  import.meta.env.VITE_GDPR_CONTACT_EMAIL ?? "privacy@hartsconsulting.com";
+  import.meta.env.VITE_GDPR_CONTACT_EMAIL ?? "privacy@globalharts.com";
 
 export const DATA_CONTROLLER_FULL_NAME =
   import.meta.env.VITE_GDPR_DATA_CONTROLLER_FULL ??
-  "HARTS Consulting Pvt Ltd";
+  "HARTS GmbH";
 
 export const DATA_CONTROLLER_ADDRESS =
   import.meta.env.VITE_GDPR_DATA_CONTROLLER_ADDRESS ??
-  "[Insert full registered address]";
+  "Düsseldorf, North Rhine-Westphalia, 40629";
 
 export const DATA_CONTROLLER_COUNTRY =
   import.meta.env.VITE_GDPR_DATA_CONTROLLER_COUNTRY ??
-  "[Insert country of incorporation]";
+  "Germany";
 
 export const AWS_HOSTING_REGION =
-  import.meta.env.VITE_GDPR_AWS_REGION ?? "[Insert AWS region]";
+  import.meta.env.VITE_GDPR_AWS_REGION ?? "Hyderabad, India";
 
 export const GOVERNING_LAW_COUNTRY =
-  import.meta.env.VITE_GDPR_GOVERNING_LAW ?? "[Insert country]";
+  import.meta.env.VITE_GDPR_GOVERNING_LAW ?? "Germany";
