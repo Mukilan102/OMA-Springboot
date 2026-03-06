@@ -6,6 +6,8 @@ import com.example.OMA.DTO.SurveySubmissionDTO;
 import com.example.OMA.Model.SurveySubmission;
 import com.example.OMA.Service.SurveyService;
 import com.example.OMA.Service.RecaptchaService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +19,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("api/survey")
 public class SurveyController {
+
+    private static final Logger log = LoggerFactory.getLogger(SurveyController.class);
 
     private final SurveyService surveyService;
     private final RecaptchaService recaptchaService;
@@ -36,7 +40,7 @@ public class SurveyController {
             body.put("success", true);
             return ResponseEntity.ok(body);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("save-answer failed", e);
             Map<String, Object> err = new HashMap<>();
             err.put("success", false);
             err.put("message", e.getMessage());
@@ -45,7 +49,7 @@ public class SurveyController {
     }
 
     /**
-     * Bulk save-progress endpoint — receives the FULL responses map.
+     * Bulk save-progress endpoint - receives the FULL responses map.
      * Idempotent: replaces all stored responses for this session with the payload.
      * Called by the frontend autosave hook on navigation, answer change, and visibility events.
      */
@@ -57,7 +61,7 @@ public class SurveyController {
             body.put("success", true);
             return ResponseEntity.ok(body);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("save-progress failed", e);
             Map<String, Object> err = new HashMap<>();
             err.put("success", false);
             err.put("message", e.getMessage());
@@ -101,15 +105,15 @@ public class SurveyController {
             body.put("score", verificationResult.get("score"));
             return ResponseEntity.ok(body);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("verify-session failed", e);
             Map<String, Object> err = new HashMap<>();
             err.put("success", false);
-            err.put("message", "Verification error: " + e.getMessage());
+            err.put("message", "Verification error");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
         }
     }
 
-    /** Final submit — stamps submittedAt and re-saves all answers. */
+    /** Final submit - stamps submittedAt and re-saves all answers. */
     @PostMapping("/submit")
     public ResponseEntity<Map<String, Object>> submitSurvey(@RequestBody SurveySubmissionDTO dto) {
         try {
@@ -123,7 +127,7 @@ public class SurveyController {
             body.put("sessionId", saved.getSessionId());
             return ResponseEntity.ok(body);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("submit failed", e);
             Map<String, Object> err = new HashMap<>();
             err.put("success", false);
             err.put("message", e.getMessage());
@@ -164,10 +168,10 @@ public class SurveyController {
                     ? submission.getStartedAt().toString() : null);
             return ResponseEntity.ok(body);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("session-responses failed", e);
             Map<String, Object> err = new HashMap<>();
             err.put("found", false);
-            err.put("message", e.getMessage());
+            err.put("message", "Failed to retrieve session data");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
         }
     }
@@ -176,6 +180,57 @@ public class SurveyController {
     @GetMapping("survey_score")
     public Map<Integer, BigDecimal> getScore(){
         return surveyService.getAllResponse();
+    }
+
+    // ── GDPR Data Rights Endpoints ──
+
+    /**
+     * Export all data linked to a session ID (GDPR right of access / portability).
+     * Returns the session metadata and all responses in JSON format.
+     */
+    @GetMapping("/session/{sessionId}/export")
+    public ResponseEntity<Map<String, Object>> exportSessionData(@PathVariable String sessionId) {
+        try {
+            Map<String, Object> data = surveyService.exportSessionData(sessionId);
+            if (data == null) {
+                Map<String, Object> err = new HashMap<>();
+                err.put("found", false);
+                err.put("message", "No data found for this session ID");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err);
+            }
+            data.put("exportedAt", java.time.Instant.now().toString());
+            return ResponseEntity.ok(data);
+        } catch (Exception e) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "Export failed");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
+        }
+    }
+
+    /**
+     * Delete all data linked to a session ID (GDPR right to erasure).
+     * Removes response rows but keeps a minimal audit stub.
+     */
+    @DeleteMapping("/session/{sessionId}/data")
+    public ResponseEntity<Map<String, Object>> deleteSessionData(@PathVariable String sessionId) {
+        try {
+            boolean deleted = surveyService.deleteSessionData(sessionId);
+            Map<String, Object> body = new HashMap<>();
+            if (!deleted) {
+                body.put("success", false);
+                body.put("message", "No data found for this session ID");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+            }
+            body.put("success", true);
+            body.put("message", "Session data deleted successfully");
+            return ResponseEntity.ok(body);
+        } catch (Exception e) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "Deletion failed");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
+        }
     }
 
 }

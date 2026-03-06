@@ -16,7 +16,7 @@ import lombok.Setter;
 public class CategorySurveyDTO {
  
     @JsonProperty("category_id")
-    private Long categoryId;
+    private Integer categoryId;
     @JsonProperty("category_text")
     private String categoryName;
     @JsonProperty("questions")

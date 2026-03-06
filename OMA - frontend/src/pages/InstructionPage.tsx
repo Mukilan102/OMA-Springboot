@@ -1,7 +1,15 @@
 import { useNavigate } from "react-router";
+import { Link } from "react-router";
 import { useState, useEffect } from "react";
 import { Button } from "../components/ui/button";
 import apiClient from "../config/api";
+import { Footer } from "../components/Footer";
+import {
+  CONSENT_LABEL,
+  PRIVACY_NOTICE_SHORT,
+  PRIVACY_POLICY_PATH,
+  TERMS_OF_SERVICE_PATH,
+} from "../config/gdpr";
 import logo from "../assets/HARTS Consulting LBG.png";
 import LeadershipIcon from "../assets/icons/strategic leadership.svg?react";
 import CultureIcon from "../assets/icons/Culture.svg?react";
@@ -69,6 +77,7 @@ export default function InstructionPage() {
   const navigate = useNavigate();
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [consentGiven, setConsentGiven] = useState(false);
 
   // Load reCAPTCHA script dynamically when component mounts
   useEffect(() => {
@@ -144,7 +153,8 @@ export default function InstructionPage() {
         throw new Error(errorData.message || "Verification failed. Please try again.");
       }
 
-      // Verification passed - navigate to survey
+      // Verification passed - store consent timestamp and navigate to survey
+      sessionStorage.setItem("gdpr_consent_at", new Date().toISOString());
       navigate("/survey");
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An error occurred. Please try again.";
@@ -156,7 +166,7 @@ export default function InstructionPage() {
 
   return (
     
-    <div className="min-h-screen bg-[#F5F7FA]">
+    <div className="min-h-screen flex flex-col bg-[#F5F7FA]">
       {/* ── Navigation ── */}
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -181,7 +191,7 @@ export default function InstructionPage() {
       </nav>
 
       {/* ── Main Content ── */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+      <main className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
 
         {/* ── Hero Card ── */}
         <section
@@ -249,7 +259,7 @@ export default function InstructionPage() {
           </ul>
 
           <p className="text-[#4A4A4A] leading-relaxed pt-1">
-            The goal is to evaluate organisational maturity — not to rate individuals — and
+            The goal is to evaluate organisational maturity - not to rate individuals - and
             to gain a clear, collective view of our organisation's leadership strengths and
             development priorities.
           </p>
@@ -327,8 +337,35 @@ export default function InstructionPage() {
           </ul>
         </section>
 
-        {/* ── Start Survey CTA ── */}
+        {/* ── Privacy Notice ── */}
+        <div className="rounded-xl border border-blue-200 bg-blue-50/50 px-5 py-4 space-y-1">
+          <p className="text-sm text-[#4A4A4A] leading-relaxed">
+            {PRIVACY_NOTICE_SHORT}{" "}
+            <Link to={PRIVACY_POLICY_PATH} className="text-[#008489] underline">
+              Read our Privacy Policy
+            </Link>{" "}
+            |{" "}
+            <Link to={TERMS_OF_SERVICE_PATH} className="text-[#008489] underline">
+              Terms of Service
+            </Link>
+          </p>
+        </div>
+
+        {/* ── Consent + Start Survey CTA ── */}
         <div className="flex flex-col items-center gap-4 pb-10">
+          {/* Consent checkbox */}
+          <label className="flex items-start gap-3 max-w-2xl cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={consentGiven}
+              onChange={(e) => setConsentGiven(e.target.checked)}
+              className="mt-1 h-5 w-5 rounded border-gray-300 text-[#002D72] focus:ring-[#002D72] flex-shrink-0"
+            />
+            <span className="text-sm text-[#4A4A4A] leading-relaxed">
+              {CONSENT_LABEL}
+            </span>
+          </label>
+
           {error && (
             <div className="w-full max-w-md bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-start gap-3">
               <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -340,7 +377,7 @@ export default function InstructionPage() {
           )}
           <Button
             onClick={handleStartSurvey}
-            disabled={isVerifying}
+            disabled={isVerifying || !consentGiven}
             className="h-14 px-12 text-lg bg-[#008489] hover:bg-[#006b6f] text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Start the survey"
           >
@@ -358,6 +395,7 @@ export default function InstructionPage() {
           </Button>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

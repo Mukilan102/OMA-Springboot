@@ -3,7 +3,7 @@ package com.example.OMA.Model;
 import jakarta.persistence.*;
 import org.springframework.data.domain.Persistable;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,13 +16,19 @@ public class SurveySubmission implements Persistable<String> {
     private String sessionId;
 
     @Column(name = "started_at", nullable = false)
-    private LocalDateTime startedAt;
+    private Instant startedAt;
 
     @Column(name = "submitted_at")
-    private LocalDateTime submittedAt;
+    private Instant submittedAt;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
+
+    @Column(name = "consent_given")
+    private Boolean consentGiven;
+
+    @Column(name = "consent_at")
+    private Instant consentAt;
 
     @OneToMany(mappedBy = "submission", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SurveyResponse> responses = new ArrayList<>();
@@ -31,14 +37,14 @@ public class SurveySubmission implements Persistable<String> {
     private boolean isNew = true;
 
     public SurveySubmission() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = Instant.now();
     }
 
-    public SurveySubmission(String sessionId, LocalDateTime startedAt, LocalDateTime submittedAt) {
+    public SurveySubmission(String sessionId, Instant startedAt, Instant submittedAt) {
         this.sessionId = sessionId;
         this.startedAt = startedAt;
         this.submittedAt = submittedAt;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = Instant.now();
     }
 
     @Override
@@ -54,17 +60,23 @@ public class SurveySubmission implements Persistable<String> {
     public String getSessionId() { return sessionId; }
     public void setSessionId(String sessionId) { this.sessionId = sessionId; }
 
-    public LocalDateTime getStartedAt() { return startedAt; }
-    public void setStartedAt(LocalDateTime startedAt) { this.startedAt = startedAt; }
+    public Instant getStartedAt() { return startedAt; }
+    public void setStartedAt(Instant startedAt) { this.startedAt = startedAt; }
 
-    public LocalDateTime getSubmittedAt() { return submittedAt; }
-    public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
+    public Instant getSubmittedAt() { return submittedAt; }
+    public void setSubmittedAt(Instant submittedAt) { this.submittedAt = submittedAt; }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 
     public List<SurveyResponse> getResponses() { return responses; }
     public void setResponses(List<SurveyResponse> responses) { this.responses = responses; }
+
+    public Boolean getConsentGiven() { return consentGiven; }
+    public void setConsentGiven(Boolean consentGiven) { this.consentGiven = consentGiven; }
+
+    public Instant getConsentAt() { return consentAt; }
+    public void setConsentAt(Instant consentAt) { this.consentAt = consentAt; }
 
     public void addResponse(SurveyResponse response) {
         responses.add(response);

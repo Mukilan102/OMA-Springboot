@@ -1,3 +1,6 @@
+import { Link } from "react-router";
+import { DATA_CONTROLLER_EMAIL } from "../config/gdpr";
+
 export function Footer() {
   return (
     <footer className="w-full border-t bg-white py-6">
@@ -6,13 +9,13 @@ export function Footer() {
           &copy; {new Date().getFullYear()} OMA. All rights reserved.
         </p>
         <div className="flex gap-4 text-sm text-gray-500">
-          <a href="#" className="hover:text-gray-700 transition-colors">
+          <Link to="/privacy-policy" className="hover:text-gray-700 transition-colors">
             Privacy Policy
-          </a>
-          <a href="#" className="hover:text-gray-700 transition-colors">
+          </Link>
+          <Link to="/terms-of-service" className="hover:text-gray-700 transition-colors">
             Terms of Service
-          </a>
-          <a href="#" className="hover:text-gray-700 transition-colors">
+          </Link>
+          <a href={`mailto:${DATA_CONTROLLER_EMAIL}`} className="hover:text-gray-700 transition-colors">
             Contact
           </a>
         </div>

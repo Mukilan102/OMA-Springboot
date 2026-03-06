@@ -319,3 +319,79 @@
     opacity: 0;
   }
 }
+
+/* ─── Mobile: reduce / disable heavy animations ─── */
+@media (max-width: 767px) {
+  .login-background {
+    animation: none;
+    background-size: 100% 100%;
+  }
+
+  .particle,
+  .particle::before {
+    animation: none !important;
+    opacity: 0.3;
+  }
+
+  .geometric-shape {
+    animation: none !important;
+    display: none;
+  }
+
+  .hexagon,
+  .hexagon::before,
+  .hexagon::after {
+    animation: none !important;
+    display: none;
+  }
+
+  .network-node {
+    animation: none !important;
+    opacity: 0.4;
+  }
+
+  .data-stream {
+    animation: none !important;
+    display: none;
+  }
+
+  .scan-line {
+    animation: none !important;
+    display: none;
+  }
+
+  .glow-orb {
+    animation: none !important;
+    opacity: 0.5;
+  }
+
+  .glow-orb-1 { width: 150px; height: 150px; }
+  .glow-orb-2 { width: 120px; height: 120px; }
+  .glow-orb-3 { display: none; }
+
+  .grid-overlay {
+    animation: none !important;
+  }
+
+  .connection-line {
+    animation: none !important;
+    display: none;
+  }
+}
+
+/* Tablets: reduce but keep some animation */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .particle::before {
+    animation: none !important;
+  }
+
+  .hexagon {
+    display: none;
+  }
+
+  .data-stream {
+    display: none;
+  }
+
+  .glow-orb-3 { display: none; }
+}

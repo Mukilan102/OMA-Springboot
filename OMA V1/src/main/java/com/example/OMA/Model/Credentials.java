@@ -20,7 +20,7 @@ import lombok.Setter;
 public class Credentials {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
     @Column(nullable = false)
     private String username;
@@ -28,5 +28,6 @@ public class Credentials {
     @Column(nullable = false)
     private String password;
 
+    @Column(nullable = false)
     private String role;
 }

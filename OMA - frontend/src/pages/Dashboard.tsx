@@ -15,12 +15,13 @@ import {
 
 import { OnionPeel } from "../components/OnionPeel";
 import { HappinessChart } from "../components/HappinessChart";
+import { MaintenanceBanner } from "../components/MaintenanceBanner";
 
 import { Footer } from "../components/Footer";
 import { useScrollAnimation } from "../hooks/useScrollAnimation";
 import logo from "../assets/HARTS Consulting LBG.png";
 import EvoraLogo from "../assets/Evoralogo.png";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const CATEGORY_MAPPING: { [key: number]: string } = {
   1: 'Leadership',
@@ -41,21 +42,44 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [overallScore, setOverallScore] = useState<number>(0);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [estimatedMaintenanceMinutes, setEstimatedMaintenanceMinutes] = useState(30);
+  const [redirectMessage, setRedirectMessage] = useState<string | null>(null);
+  const hasRunRef = useRef(false);  // Prevent effect from running multiple times
 
   // Fetch survey score data on mount - handles both authentication and data fetching
   useEffect(() => {
+    // Skip if effect has already run (prevents infinite loops)
+    if (hasRunRef.current) return;
+    hasRunRef.current = true;
+
     const fetchSurveyScore = async () => {
       try {
         setLoading(true);
         
-        // First, check if user has valid JWT token
+        // First, check BERT health status
+        const healthResponse = await apiClient.fetch("/credential/health");
+        if (healthResponse.ok) {
+          const healthData = await healthResponse.json();
+          if (healthData.maintenance) {
+            setMaintenanceMode(true);
+            setEstimatedMaintenanceMinutes(healthData.estimatedMaintenanceMinutes || 30);
+            setLoading(false);
+            return;  // Block dashboard - BERT is not running
+          }
+        }
+        
+        // BERT is healthy, now check if user has valid JWT token
         const authResponse = await apiClient.fetch("/credential/check", {
           credentials: "include"
         });
         
-        // If user is not authenticated, redirect to login
-        if (!authResponse.ok || authResponse.status === 401) {
-          navigate("/login");
+        // If user is not authenticated, show redirect message and redirect to login
+        if (!authResponse.ok) {
+          setRedirectMessage("Your session is over. Redirecting to login page...");
+          setTimeout(() => {
+            navigate("/login", { replace: true });
+          }, 1000);
           return;
         }
         
@@ -63,13 +87,13 @@ export default function Dashboard() {
         const response = await apiClient.fetch("/survey/survey_score", {
           credentials: "include"
         });
-        if (response.status === 503) {
-          setError("Prediction service is not running.");
-          return;
-        }
-        // Check if user is unauthorized - redirect to login
-        if (!response.ok || response.status === 401) {
-          navigate("/login");
+        
+        // Check if user is unauthorized - redirect to login and stop
+        if (!response.ok) {
+          setRedirectMessage("Your session is over. Redirecting to login page...");
+          setTimeout(() => {
+            navigate("/login", { replace: true });
+          }, 1000);
           return;
         }
         
@@ -93,17 +117,18 @@ export default function Dashboard() {
           setError(null);
         }
       } catch (err) {
-        // If any error occurs during auth check, redirect to login to be safe
-        // navigate("/login");
-        console.error(err);
-        setError("Unable to load dashboard data. Please try again later.");
+        // If any error occurs, redirect to login to be safe
+        setRedirectMessage("Your session is over. Redirecting to login page...");
+        setTimeout(() => {
+          navigate("/login", { replace: true });
+        }, 1000);
       } finally {
         setLoading(false);
       }
     };
 
     fetchSurveyScore();
-  }, [navigate]);
+  }, []);  // Empty dependency array - run only once on mount
 
   const handleLogout = async () => {
     try {
@@ -203,7 +228,17 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F7FA]">
+    <div className="flex flex-col min-h-screen bg-[#F5F7FA]">
+      {/* Redirect Loading Screen */}
+      {redirectMessage && (
+        <div className="fixed inset-0 bg-black/50 flex flex-col items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl p-8 text-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#008489] border-t-transparent mx-auto"></div>
+            <p className="text-lg text-[#4A4A4A] font-medium">{redirectMessage}</p>
+          </div>
+        </div>
+      )}
+
       {/* Navigation */}
       <nav className="border-b border-gray-200 animate-fade-in-down">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -234,36 +269,61 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
+      <div className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-12 space-y-8 sm:space-y-12 w-full">
+        {/* Maintenance Banner - blocks dashboard if BERT is down */}
+        {maintenanceMode && (
+          <div>
+            <MaintenanceBanner 
+              visible={true} 
+              estimatedMinutes={estimatedMaintenanceMinutes}
+            />
+            <div className="mt-8 text-center">
+              <p className="text-lg text-[#4A4A4A] mb-4">
+                The dashboard is temporarily unavailable due to system maintenance. Please check back later.
+              </p>
+              <Button
+                variant="outline"
+                onClick={handleLogout}
+                className="text-[#002D72] border-[#002D72] hover:bg-[#002D72] hover:text-white"
+              >
+                Back to Home
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Dashboard content - only shown when BERT is healthy */}
+        {!maintenanceMode && (
+          <>
         {/* Header */}
-        <div className="space-y-2 scroll-animate">
-          <div className="flex items-center gap-5">
-            <img src={EvoraLogo} alt="EVORA Logo" className="h-12 w-auto mt-4" />
-            <h2 className="text-5xl font-light text-[#002D72]">
+        <div className="space-y-4 scroll-animate flex flex-col items-center">
+          <div className="flex flex-col gap-4 items-center">
+            <img src={EvoraLogo} alt="EVORA Logo" className="h-16 sm:h-20 w-auto object-contain" />
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-light text-[#002D72] text-center">
               Maturity Assessment Dashboard
             </h2>
           </div>
-          <p className="text-lg text-[#4A4A4A]">
+          <p className="text-base sm:text-lg text-[#4A4A4A] text-center max-w-2xl">
             Your organizational maturity assessment results and strategic insights
           </p>
         </div>
 
         {/* Main Layout: Left Column (2 boxes) + Right Column (1 large box) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           {/* Left Column */}
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-8">
             {/* Overall Maturity Score */}
-            <Card className="bg-white rounded-2xl shadow-md px-8 py-8 space-y-5 p-8 scroll-animate gradient-border-hover">
+            <Card className="bg-white rounded-xl sm:rounded-2xl shadow-md px-4 sm:px-8 py-6 sm:py-8 space-y-5 scroll-animate gradient-border-hover">
               {pulseMetrics.map((metric, index) => (
                 <div key={index} className="space-y-6">
-                  <h3 className="text-2xl font-light text-[#002D72]">Overall Maturity Score</h3>
+                  <h3 className="text-xl sm:text-2xl font-light text-[#002D72]">Overall Maturity Score</h3>
                   <div className="space-y-4">
                     <p className="text-sm text-[#4A4A4A]">{metric.title}</p>
                     <div className="flex items-baseline gap-3">
-                      <span className="text-5xl font-light text-[#002D72]">
+                      <span className="text-4xl sm:text-5xl font-light text-[#002D72]">
                         {metric.value}
                       </span>
-                      <span className="text-xl text-[#4A4A4A]">
+                      <span className="text-lg sm:text-xl text-[#4A4A4A]">
                         / {metric.max}
                       </span>
                     </div>
@@ -273,8 +333,8 @@ export default function Dashboard() {
             </Card>
 
             {/* EVORA's Model */}
-            <Card className="bg-white rounded-2xl shadow-md px-8 py-8 space-y-5 p-8 scroll-animate gradient-border-hover">
-              <h3 className="text-2xl font-light text-[#002D72] mb-6">EVORA's Model</h3>
+            <Card className="bg-white rounded-xl sm:rounded-2xl shadow-md px-4 sm:px-8 py-6 sm:py-8 space-y-5 scroll-animate gradient-border-hover">
+              <h3 className="text-xl sm:text-2xl font-light text-[#002D72] mb-6">EVORA's Model</h3>
               <div className="w-full">
                 <OnionPeel score={overallScore} />
               </div>
@@ -283,17 +343,17 @@ export default function Dashboard() {
 
           {/* Right Column - Category Performance Analysis */}
           <div>
-            <Card className="bg-white rounded-2xl shadow-md px-8 py-8 space-y-5 p-8 h-full scroll-animate gradient-border-hover">
+            <Card className="bg-white rounded-xl sm:rounded-2xl shadow-md px-4 sm:px-8 py-6 sm:py-8 space-y-5 h-full scroll-animate gradient-border-hover">
               <div className="space-y-6 h-full flex flex-col">
                 <div>
-                  <h3 className="text-2xl font-light text-[#002D72]">
+                  <h3 className="text-xl sm:text-2xl font-light text-[#002D72]">
                     Category Performance Analysis
                   </h3>
-                  <p className="text-sm text-[#4A4A4A] mt-2">
+                  <p className="text-xs sm:text-sm text-[#4A4A4A] mt-2">
                     Your organization's maturity across key categories
                   </p>
                 </div>
-                <div className="flex-1 min-h-[350px]">
+                <div className="flex-1 min-h-[300px] sm:min-h-[350px]">
                   {loading ? (
                     <div className="flex items-center justify-center h-full">
                       <div className="text-center">
@@ -317,13 +377,13 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart data={radarData} margin={{ top: 30, right: 80, bottom: 30, left: 80 }}>
+                      <RadarChart data={radarData} margin={{ top: 80, right: 60, bottom: 40, left: 60 }}>
                         <PolarGrid stroke="#E5E7EB" />
                         <PolarAngleAxis
                           dataKey="category"
-                          tick={{ fill: "#4A4A4A", fontSize: 11 }}
+                          tick={{ fill: "#4A4A4A", fontSize: 10, offset: 8 }}
                         />
-                        <PolarRadiusAxis angle={90} domain={[0, 5]} tick={{ fill: "#4A4A4A" }} />
+                        <PolarRadiusAxis angle={90} domain={[0, 5]} tick={false} />
                         <Tooltip
                           content={<CustomRadarTooltip />}
                           cursor={{ stroke: "#002D72", strokeWidth: 2 }}
@@ -352,26 +412,26 @@ export default function Dashboard() {
         </div>
 
         {/* Organizational Health & Sentiment */}
-        <div className="space-y-6 scroll-animate">
+        <div className="space-y-6 sm:space-y-8 scroll-animate">
           <div className="space-y-2">
-            <h3 className="text-4xl font-light text-[#002D72]">
+            <h3 className="text-2xl sm:text-3xl lg:text-4xl font-light text-[#002D72]">
               Organizational Health & Sentiment
             </h3>
-            <p className="text-lg text-[#4A4A4A]">
+            <p className="text-sm sm:text-base lg:text-lg text-[#4A4A4A]">
               Employee well-being and engagement metrics
             </p>
           </div> 
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
             <div className="h-full scroll-animate">
               <HappinessChart />
             </div>
             {/* eNPS Score Card */}
-            <Card className="p-6 bg-white shadow-sm hover:shadow-md transition-shadow card-hover gradient-border-hover scroll-animate-right">
-              <h4 className="text-xl font-medium mb-4 text-[#002D72]">Employee Net Promoter Score (eNPS)</h4>
+            <Card className="p-4 sm:p-6 bg-white shadow-sm hover:shadow-md transition-shadow card-hover gradient-border-hover scroll-animate-right">
+              <h4 className="text-base sm:text-lg lg:text-xl font-medium mb-4 text-[#002D72]">Employee Net Promoter Score (eNPS)</h4>
               <div className="flex flex-col items-center">
                 {/* Donut Chart */}
-                <div className="relative w-26 h-26 mb-3">
+                <div className="relative w-20 h-20 sm:w-26 sm:h-26 mb-3">
                   <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
                     {/* Background circle */}
                     <circle cx="50" cy="50" r="40" fill="none" stroke="#f0f0f0" strokeWidth="12" />
@@ -408,7 +468,7 @@ export default function Dashboard() {
                   </svg>
                   {/* Center content */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-4xl font-light text-[#4A4A4A]">50</span>
+                    <span className="text-2xl sm:text-3xl lg:text-4xl font-light text-[#4A4A4A]">50</span>
                   </div>
                 </div>
                 {/* Legend */}
@@ -454,6 +514,8 @@ export default function Dashboard() {
 
         {/* Contact Us Section */}
         
+          </>
+        )}
       </div>
 
       {/* Footer */}

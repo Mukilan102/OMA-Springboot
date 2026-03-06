@@ -23,8 +23,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -54,14 +54,10 @@ public class SurveyService {
     // ── Save a single answer (called on Next click, debounced 2 s from frontend) ──
     @Transactional
     public void saveAnswer(SaveAnswerDTO dto) {
-        DateTimeFormatter fmt = DateTimeFormatter.ISO_DATE_TIME;
-
         // Upsert the submission row (create if first answer for this session)
         SurveySubmission submission = submissionRepo.findById(dto.getSessionId()).orElse(null);
         if (submission == null) {
-            LocalDateTime startedAt = dto.getStartedAt() != null
-                    ? LocalDateTime.parse(dto.getStartedAt(), fmt)
-                    : LocalDateTime.now();
+            Instant startedAt = parseInstant(dto.getStartedAt());
             submission = new SurveySubmission(dto.getSessionId(), startedAt, null);
             submissionRepo.saveAndFlush(submission);
         }
@@ -70,7 +66,7 @@ public class SurveyService {
         responseRepo.deleteBySessionIdAndMainQuestionId(dto.getSessionId(), dto.getMainQuestionId());
         responseRepo.flush();
 
-        // Insert new answer row(s) — save each response explicitly
+        // Insert new answer row(s) - save each response explicitly
         List<SurveyResponse> rows = buildResponseRows(submission, dto.getMainQuestionId(), dto.getAnswer());
         responseRepo.saveAll(rows);
     }
@@ -78,7 +74,7 @@ public class SurveyService {
     /**
      * Bulk save-progress: replaces ALL stored responses for a session with the
      * full responses map from the frontend.
-     * Idempotent — multiple identical calls produce the same result.
+     * Idempotent - multiple identical calls produce the same result.
      * Does NOT touch submittedAt (that is the job of submitSurvey).
      */
     @Transactional
@@ -86,8 +82,16 @@ public class SurveyService {
         // Upsert the submission row
         SurveySubmission submission = submissionRepo.findById(dto.getSessionId()).orElse(null);
         if (submission == null) {
-            submission = new SurveySubmission(dto.getSessionId(), LocalDateTime.now(), null);
+            submission = new SurveySubmission(dto.getSessionId(), Instant.now(), null);
+            // Persist consent if provided
+            applyConsent(submission, dto.getConsentGiven(), dto.getConsentAt());
             submissionRepo.saveAndFlush(submission);
+        } else {
+            // Update consent if not already set and provided
+            if (submission.getConsentGiven() == null || !submission.getConsentGiven()) {
+                applyConsent(submission, dto.getConsentGiven(), dto.getConsentAt());
+                submissionRepo.saveAndFlush(submission);
+            }
         }
 
         // If already submitted, reject silently (don't overwrite final data)
@@ -117,26 +121,26 @@ public class SurveyService {
     @Transactional
     public SurveySubmission submitSurvey(SurveySubmissionDTO dto) {
 
-        DateTimeFormatter fmt = DateTimeFormatter.ISO_DATE_TIME;
-
-        LocalDateTime startedAt = dto.getStartedAt() != null
-                ? LocalDateTime.parse(dto.getStartedAt(), fmt)
+        Instant startedAt = dto.getStartedAt() != null
+                ? parseInstant(dto.getStartedAt())
                 : null;
-        LocalDateTime submittedAt = dto.getSubmittedAt() != null
-                ? LocalDateTime.parse(dto.getSubmittedAt(), fmt)
-                : LocalDateTime.now();
+        Instant submittedAt = dto.getSubmittedAt() != null
+                ? parseInstant(dto.getSubmittedAt())
+                : Instant.now();
 
         // Reuse existing submission row if one was created by save-answer calls
         SurveySubmission submission = submissionRepo.findById(dto.getSessionId()).orElse(null);
         if (submission != null) {
             submission.setStartedAt(startedAt);
             submission.setSubmittedAt(submittedAt);
+            applyConsent(submission, dto.getConsentGiven(), dto.getConsentAt());
             // Delete old draft responses
             responseRepo.deleteAll(submission.getResponses());
             responseRepo.flush();
             submission.getResponses().clear();
         } else {
             submission = new SurveySubmission(dto.getSessionId(), startedAt, submittedAt);
+            applyConsent(submission, dto.getConsentGiven(), dto.getConsentAt());
         }
 
         // Persist/update the submission row first
@@ -154,6 +158,76 @@ public class SurveyService {
         }
 
         return submission;
+    }
+
+    // ── Consent helper ──
+    private void applyConsent(SurveySubmission submission, Boolean consentGiven, String consentAt) {
+        if (consentGiven != null && consentGiven) {
+            submission.setConsentGiven(true);
+            if (consentAt != null && !consentAt.isBlank()) {
+                submission.setConsentAt(parseInstant(consentAt));
+            } else {
+                submission.setConsentAt(Instant.now());
+            }
+        }
+    }
+
+    /**
+     * Parse an ISO-8601 timestamp string to an Instant (UTC).
+     * Handles formats with 'Z', offsets ('+05:30'), or bare local datetimes
+     * (treated as UTC for consistency).
+     */
+    private Instant parseInstant(String iso) {
+        if (iso == null || iso.isBlank()) return Instant.now();
+        try {
+            // Handles both "2026-03-03T12:33:29.162Z" and "2026-03-03T12:33:29.162+05:30"
+            return Instant.parse(iso);
+        } catch (DateTimeParseException e) {
+            // Bare local datetime without zone (e.g. "2026-03-03T12:33:29.162")
+            // Treat as UTC to keep behaviour consistent
+            return Instant.parse(iso + "Z");
+        }
+    }
+
+    // ── GDPR data export ──
+    /**
+     * Export all data linked to a session ID in a portable format.
+     * Returns a map that can be serialised straight to JSON.
+     */
+    public Map<String, Object> exportSessionData(String sessionId) {
+        SurveySubmission sub = submissionRepo.findById(sessionId).orElse(null);
+        if (sub == null) return null;
+
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("sessionId", sub.getSessionId());
+        data.put("startedAt", sub.getStartedAt() != null ? sub.getStartedAt().toString() : null);
+        data.put("submittedAt", sub.getSubmittedAt() != null ? sub.getSubmittedAt().toString() : null);
+        data.put("consentGiven", sub.getConsentGiven());
+        data.put("consentAt", sub.getConsentAt() != null ? sub.getConsentAt().toString() : null);
+        data.put("responses", getResponsesMapForSession(sessionId));
+        return data;
+    }
+
+    // ── GDPR data deletion ──
+    /**
+     * Delete all response data for a session (right to erasure).
+     * Removes responses and nullifies PII-adjacent fields but keeps the
+     * submission row as an audit stub.
+     */
+    @Transactional
+    public boolean deleteSessionData(String sessionId) {
+        SurveySubmission sub = submissionRepo.findById(sessionId).orElse(null);
+        if (sub == null) return false;
+
+        // Delete all response rows
+        responseRepo.deleteBySubmissionSessionId(sessionId);
+        responseRepo.flush();
+
+        // Nullify data fields but keep row as audit trail
+        sub.setConsentGiven(false);
+        sub.setConsentAt(null);
+        submissionRepo.saveAndFlush(sub);
+        return true;
     }
 
     public List<SurveySubmission> getAllSubmissions() {
@@ -322,9 +396,12 @@ public class SurveyService {
                 String url = "http://localhost:8000/predict";
                 Map<String, String> request = new HashMap<>();
                 request.put("text", response.getFreeText());
-                try {
-                    ResponseEntity<BertResponse> res =
-                            restTemplate.postForEntity(url, request, BertResponse.class);
+                ResponseEntity<BertResponse> res = restTemplate.postForEntity(url, request, BertResponse.class);
+                BertResponse body = res.getBody();
+                BigDecimal stage = body.getPredicted_class_id();
+                System.out.println(response.getFreeText() +" ------ "+stage + " ---- " );
+                categoryTotalScore.put(categoryId, categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(stage));
+            }
 
                     BertResponse body = res.getBody();
                     BigDecimal stage = body.getPredicted_class_id();

@@ -4,6 +4,8 @@ import InstructionPage from "./pages/InstructionPage";
 import Survey from "./pages/Survey";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 
 export const router = createBrowserRouter([
   {
@@ -25,5 +27,13 @@ export const router = createBrowserRouter([
   {
     path: "/dashboard",
     Component: Dashboard,
+  },
+  {
+    path: "/privacy-policy",
+    Component: PrivacyPolicy,
+  },
+  {
+    path: "/terms-of-service",
+    Component: TermsOfService,
   },
 ]);

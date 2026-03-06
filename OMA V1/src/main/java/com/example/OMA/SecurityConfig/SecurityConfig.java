@@ -124,6 +124,7 @@ public class SecurityConfig {
                 // Public endpoints - allow all
                 .requestMatchers("/api/credential/login").permitAll()
                 .requestMatchers("/api/credential/register").permitAll()
+                .requestMatchers("/api/credential/health").permitAll()
                 .requestMatchers("/api/survey/**").permitAll()
                 .requestMatchers("/api/category/**").permitAll()
                 // Deny everything else

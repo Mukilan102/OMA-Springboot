@@ -25,7 +25,7 @@ public class MainQuestion {
     private Integer mainQuestionId;
  
     @Column(name = "category_id", nullable = false)
-    private Long categoryId;
+    private Integer categoryId;
  
     @Column(name = "question_text", nullable = false, columnDefinition = "TEXT")
     private String questionText;
