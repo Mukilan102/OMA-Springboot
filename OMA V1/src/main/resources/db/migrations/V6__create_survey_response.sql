@@ -1,5 +1,5 @@
 -- V6
-CREATE TABLE survey_response (
+CREATE TABLE IF NOT EXISTS survey_response (
     response_id BIGSERIAL PRIMARY KEY,
     session_id VARCHAR(255) NOT NULL,
     main_question_id INT NOT NULL,

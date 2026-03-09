@@ -402,19 +402,6 @@ public class SurveyService {
                 System.out.println(response.getFreeText() +" ------ "+stage + " ---- " );
                 categoryTotalScore.put(categoryId, categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(stage));
             }
-
-                    BertResponse body = res.getBody();
-                    BigDecimal stage = body.getPredicted_class_id();
-
-                    categoryTotalScore.put(categoryId,
-                            categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(stage));
-                } catch (Exception e) {
-                    throw new ResponseStatusException(
-                            HttpStatus.SERVICE_UNAVAILABLE,
-                            "Prediction service is not running. Start the ML service."
-                    );
-                }
-            }
             categoryCount.put(categoryId, categoryCount.getOrDefault(categoryId, 0)+1);
         }
 
@@ -438,6 +425,5 @@ public class SurveyService {
         // System.out.println("Category Average : "+ categoryAverage);
         return categoryAverage;
     }
-
 
 }

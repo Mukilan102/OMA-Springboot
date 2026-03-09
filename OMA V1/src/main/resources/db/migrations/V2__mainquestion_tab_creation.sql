@@ -1,4 +1,4 @@
-CREATE TABLE mainquestion (
+CREATE TABLE IF NOT EXISTS mainquestion (
     main_question_id SERIAL PRIMARY KEY,
     category_id INT NOT NULL,
     question_text TEXT NOT NULL,

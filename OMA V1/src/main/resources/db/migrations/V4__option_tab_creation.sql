@@ -1,4 +1,4 @@
-CREATE TABLE option (
+CREATE TABLE IF NOT EXISTS option (
     option_id SERIAL PRIMARY KEY,
     main_question_id INT,
     sub_question_id INT,
