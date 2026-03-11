@@ -8,20 +8,32 @@ const failedSubmissions = new Counter('failed_submissions');
 const questionsLoadTime = new Trend('questions_load_time');
 const submitTime = new Trend('submit_time');
 
-// ===== Test Configuration =====
-export let options = {
+// ===== Real World Test Configuration =====
+export const options = {
   scenarios: {
-    survey_real_users: {
-      executor: 'per-vu-iterations',
-      vus: 1000,        // 1000 users
-      iterations: 1,    // each user runs once
-      maxDuration: '60s'
+
+    real_user_survey: {
+      executor: 'ramping-arrival-rate',
+
+      startRate: 10,         // 10 users per second initially
+      timeUnit: '1s',
+
+      preAllocatedVUs: 200,
+      maxVUs: 1000,
+
+      stages: [
+        { target: 50, duration: '20s' },   // ramp to 50 users/sec
+        { target: 80, duration: '20s' },   // ramp to 80 users/sec
+        { target: 100, duration: '20s' },  // peak load
+        { target: 0, duration: '10s' }     // cool down
+      ]
     }
+
   },
 
   thresholds: {
-    'http_req_duration': ['p(95)<3000', 'p(99)<5000'],
-    'http_req_failed': ['rate<0.15'],
+    http_req_failed: ['rate<0.05'],   // <5% failure
+    http_req_duration: ['p(95)<2000'],
   }
 };
 
@@ -29,22 +41,23 @@ export let options = {
 
 function generateFreeText() {
   const templates = [
-    "I believe the organization is moving in the right direction.",
-    "Leadership demonstrates strong commitment to our values.",
-    "Communication could be enhanced through regular feedback.",
-    "I would recommend this organization as a great place to work."
+    "The organization demonstrates strong leadership.",
+    "Communication across departments is effective.",
+    "Innovation culture is improving significantly.",
+    "Employees feel valued and supported."
   ];
 
   return templates[Math.floor(Math.random() * templates.length)];
 }
 
 function generateResponse(question) {
+
   const type = question.question_type;
 
   switch (type) {
 
     case 'single ans':
-      if (question.options && question.options.length > 0) {
+      if (question.options?.length) {
         return question.options[
           Math.floor(Math.random() * question.options.length)
         ].option_id;
@@ -52,16 +65,18 @@ function generateResponse(question) {
       return null;
 
     case 'multi ans':
-      if (question.options && question.options.length > 0) {
-        const numAnswers = Math.min(2, question.options.length);
-        const selected = [];
-        const used = new Set();
+      if (question.options?.length) {
 
-        while (selected.length < numAnswers) {
-          const idx = Math.floor(Math.random() * question.options.length);
-          if (!used.has(idx)) {
-            used.add(idx);
-            selected.push(question.options[idx].option_id);
+        const selected = [];
+        const count = Math.min(2, question.options.length);
+
+        while (selected.length < count) {
+
+          const option =
+            question.options[Math.floor(Math.random() * question.options.length)];
+
+          if (!selected.includes(option.option_id)) {
+            selected.push(option.option_id);
           }
         }
 
@@ -73,7 +88,7 @@ function generateResponse(question) {
       return generateFreeText();
 
     case 'rank':
-      if (question.options && question.options.length > 0) {
+      if (question.options?.length) {
 
         const options = question.options.map(o => o.option_id);
 
@@ -87,23 +102,25 @@ function generateResponse(question) {
       return [];
 
     case 'likert':
-      const likertResponse = {};
+
+      const likert = {};
 
       if (question.sub_questions) {
-        question.sub_questions.forEach(subQ => {
 
-          if (subQ.options && subQ.options.length > 0) {
+        question.sub_questions.forEach(sub => {
 
-            const randomOption =
-              subQ.options[Math.floor(Math.random() * subQ.options.length)];
+          if (sub.options?.length) {
 
-            likertResponse[subQ.sub_question_id.toString()] =
-              randomOption.option_id;
+            const random =
+              sub.options[Math.floor(Math.random() * sub.options.length)];
+
+            likert[sub.sub_question_id] = random.option_id;
           }
+
         });
       }
 
-      return likertResponse;
+      return likert;
 
     default:
       return null;
@@ -116,50 +133,35 @@ export default function () {
 
   const baseUrl = 'http://localhost:8080/api';
 
-  const sessionId = `vu_${__VU}_${Date.now()}`;
-  const now = new Date().toISOString();
+  const sessionId = `user_${__VU}_${Date.now()}`;
 
-  group('Full Survey Submission Flow - 1000 Users', () => {
+  group('Real User Survey Flow', () => {
 
-    // ===== Step 1 : Fetch Survey Questions =====
-    const startTime = Date.now();
+    // ===== Load Questions =====
+
+    const start = Date.now();
 
     const res = http.get(`${baseUrl}/category/allquestion`);
 
-    const duration = Date.now() - startTime;
+    questionsLoadTime.add(Date.now() - start);
 
-    questionsLoadTime.add(duration);
-
-    check(res, {
-      'questions loaded successfully': (r) => r.status === 200,
-      'response has data': (r) => r.body && r.body.length > 50,
+    const success = check(res, {
+      'questions loaded': (r) => r.status === 200
     });
 
-    if (res.status !== 200) {
+    if (!success) {
       failedSubmissions.add(1);
       return;
     }
 
-    let surveyData;
+    const surveyData = res.json();
 
-    try {
-      surveyData = res.json();
-    } catch (e) {
-      failedSubmissions.add(1);
-      return;
-    }
+    // Simulate reading time
+    sleep(2 + Math.random() * 4);
 
-    if (!Array.isArray(surveyData)) {
-      failedSubmissions.add(1);
-      return;
-    }
+    // ===== Generate Answers =====
 
-    // Simulate user reading time
-    sleep(2 + Math.random() * 2);
-
-    // ===== Step 2 : Generate Responses =====
     const responses = {};
-    let totalAnswered = 0;
 
     surveyData.forEach(category => {
 
@@ -167,63 +169,49 @@ export default function () {
 
       category.questions.forEach(question => {
 
-        if (!question.main_question_id) return;
+        const answer = generateResponse(question);
 
-        const response = generateResponse(question);
-
-        if (response !== null) {
-          responses[question.main_question_id.toString()] = response;
-          totalAnswered++;
+        if (answer !== null) {
+          responses[question.main_question_id] = answer;
         }
 
       });
 
     });
 
-    if (totalAnswered === 0) {
-      failedSubmissions.add(1);
-      return;
-    }
+    sleep(1 + Math.random() * 3);
 
-    // User reviewing answers
-    sleep(1 + Math.random() * 2);
+    // ===== Submit Survey =====
 
-    // ===== Step 3 : Submit Survey =====
-
-    const payload = {
+    const payload = JSON.stringify({
       sessionId: sessionId,
       startedAt: new Date(Date.now() - 600000).toISOString(),
-      submittedAt: now,
+      submittedAt: new Date().toISOString(),
       responses: responses,
       consentGiven: true,
-      consentAt: new Date(Date.now() - 300000).toISOString()
-    };
+      consentAt: new Date().toISOString()
+    });
 
     const submitStart = Date.now();
 
     const submitRes = http.post(
       `${baseUrl}/survey/submit`,
-      JSON.stringify(payload),
+      payload,
       { headers: { 'Content-Type': 'application/json' } }
     );
 
-    const submitDuration = Date.now() - submitStart;
+    submitTime.add(Date.now() - submitStart);
 
-    submitTime.add(submitDuration);
-
-    const success =
-      submitRes.status === 200 || submitRes.status === 201;
-
-    check(submitRes, {
-      'survey submitted successfully': () => success,
-      'submit response < 3s': (r) => r.timings.duration < 3000,
+    const submitted = check(submitRes, {
+      'survey submitted': (r) => r.status === 200 || r.status === 201
     });
 
-    if (success) {
+    if (submitted) {
       successfulSubmissions.add(1);
     } else {
       failedSubmissions.add(1);
     }
 
   });
+
 }
