@@ -60,7 +60,7 @@ export const apiClient = {
     options?: FetchOptions
   ): Promise<Response> {
     const url = `${API_BASE_URL}${endpoint}`;
-    const { timeout = 10000, ...fetchOptions } = options || {};
+    const { timeout = 1000000, ...fetchOptions } = options || {};
 
     // Ensure headers is an object for easier manipulation
     if (!fetchOptions.headers) {
