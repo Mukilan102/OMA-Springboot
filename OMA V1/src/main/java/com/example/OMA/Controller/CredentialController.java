@@ -254,11 +254,9 @@ public class CredentialController {
             factory.setReadTimeout(2000);     // 2 second read timeout
             restTemplate.setRequestFactory(factory);
             
-            // Map<String, String> testRequest = new HashMap<>();
-            // testRequest.put("text", "health");
-            
+            // Use GET request (not POST) for /health endpoint
             ResponseEntity<?> response = restTemplate.getForEntity(
-                    BERT_MODEL_URL, 
+                    BERT_MODEL_URL,  // GET to /health
                     String.class
             );
             

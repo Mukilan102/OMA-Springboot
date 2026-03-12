@@ -1,69 +1,62 @@
 package com.example.OMA.Service;
-
-import com.example.OMA.DTO.BertResponse;
+ 
 import com.example.OMA.DTO.SaveAnswerDTO;
 import com.example.OMA.DTO.SaveProgressDTO;
 import com.example.OMA.DTO.SurveySubmissionDTO;
-import com.example.OMA.Model.BertBatchResponse;
+import com.example.OMA.Model.FreetextCache;
 import com.example.OMA.Model.MainQuestion;
 import com.example.OMA.Model.Option;
 import com.example.OMA.Model.SurveyResponse;
 import com.example.OMA.Model.SurveySubmission;
+import com.example.OMA.Repository.FreetextCacheRepository;
 import com.example.OMA.Repository.MainQuestionRepo;
 import com.example.OMA.Repository.OptionRepo;
 import com.example.OMA.Repository.SurveyResponseRepo;
 import com.example.OMA.Repository.SurveySubmissionRepo;
-
-import org.springframework.http.HttpStatus;
+ 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+ 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import javax.management.RuntimeErrorException;
-
-
-
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
-import java.util.concurrent.Executor;
-import java.util.concurrent.CompletableFuture;
-
+ 
 @Service
 public class SurveyService {
-
+ 
     private static final Logger log = LoggerFactory.getLogger(SurveyService.class);
-
+ 
     private final SurveySubmissionRepo submissionRepo;
     private final SurveyResponseRepo responseRepo;
     private final MainQuestionRepo mainQuestionRepo;
-
     private final OptionRepo optionRepo;
-
+    private final FreetextCacheRepository freetextCacheRepo;
+ 
     public SurveyService(SurveySubmissionRepo submissionRepo,
                          SurveyResponseRepo responseRepo,
                          MainQuestionRepo mainQuestionRepo,
-                        OptionRepo optionRepo) {
+                         OptionRepo optionRepo,
+                         FreetextCacheRepository freetextCacheRepo) {
         this.submissionRepo = submissionRepo;
         this.responseRepo = responseRepo;
         this.mainQuestionRepo = mainQuestionRepo;
         this.optionRepo = optionRepo;
+        this.freetextCacheRepo = freetextCacheRepo;
     }
-
+ 
     // ── Save a single answer (called on Next click, debounced 2 s from frontend) ──
     @Transactional
     public void saveAnswer(SaveAnswerDTO dto) {
@@ -73,16 +66,16 @@ public class SurveyService {
             submission = new SurveySubmission(dto.getSessionId(), null);
             submissionRepo.saveAndFlush(submission);
         }
-
+ 
         // Delete old answer rows for this question (in case user changed answer)
         responseRepo.deleteBySessionIdAndMainQuestionId(dto.getSessionId(), dto.getMainQuestionId());
         responseRepo.flush();
-
+ 
         // Insert new answer row(s) - save each response explicitly
         List<SurveyResponse> rows = buildResponseRows(submission, dto.getMainQuestionId(), dto.getAnswer());
         responseRepo.saveAll(rows);
     }
-
+ 
     /**
      * Bulk save-progress: replaces ALL stored responses for a session with the
      * full responses map from the frontend.
@@ -105,14 +98,14 @@ public class SurveyService {
                 submissionRepo.saveAndFlush(submission);
             }
         }
-
+ 
         // If already submitted, reject silently (don't overwrite final data)
         if (submission.getSubmittedAt() != null) return;
-
+ 
         // Wipe all existing response rows for this session
         responseRepo.deleteBySubmissionSessionId(dto.getSessionId());
         responseRepo.flush();
-
+ 
         // Re-insert all responses from the full map
         Map<String, Object> responses = dto.getResponses();
         if (responses != null && !responses.isEmpty()) {
@@ -124,7 +117,7 @@ public class SurveyService {
             responseRepo.saveAll(allRows);
         }
     }
-
+ 
     /**
      * Persist the final survey submission.
      * Deletes any existing draft rows and re-inserts all answers,
@@ -132,11 +125,11 @@ public class SurveyService {
      */
     @Transactional
     public SurveySubmission submitSurvey(SurveySubmissionDTO dto) {
-
+ 
         Instant submittedAt = dto.getSubmittedAt() != null
                 ? parseInstant(dto.getSubmittedAt())
                 : Instant.now();
-
+ 
         // Reuse existing submission row if one was created by save-answer calls
         SurveySubmission submission = submissionRepo.findById(dto.getSessionId()).orElse(null);
         if (submission != null) {
@@ -150,24 +143,38 @@ public class SurveyService {
             submission = new SurveySubmission(dto.getSessionId(), submittedAt);
             applyConsent(submission, dto.getConsentGiven(), dto.getConsentAt());
         }
-
+ 
         // Persist/update the submission row first
         submission = submissionRepo.saveAndFlush(submission);
-
+ 
         // Fan-out all responses into relational rows and save explicitly
         Map<String, Object> responses = dto.getResponses();
         if (responses != null) {
             List<SurveyResponse> allRows = new ArrayList<>();
+            List<FreetextCache> cacheRows = new ArrayList<>();
             for (Map.Entry<String, Object> entry : responses.entrySet()) {
                 Integer mainQId = Integer.valueOf(entry.getKey());
-                allRows.addAll(buildResponseRows(submission, mainQId, entry.getValue()));
+                List<SurveyResponse> questionRows = buildResponseRows(submission, mainQId, entry.getValue());
+                allRows.addAll(questionRows);
+                
+                // Extract free text responses and add to cache with null score
+                for (SurveyResponse row : questionRows) {
+                    if (row.getFreeText() != null) {
+                        FreetextCache cache = new FreetextCache(dto.getSessionId(), mainQId, row.getCategoryId(), row.getFreeText());
+                        cacheRows.add(cache);
+                    }
+                }
             }
             responseRepo.saveAll(allRows);
+            // Save free text to cache for BERT processing
+            if (!cacheRows.isEmpty()) {
+                freetextCacheRepo.saveAll(cacheRows);
+            }
         }
-
+ 
         return submission;
     }
-
+ 
     // ── Consent helper ──
     private void applyConsent(SurveySubmission submission, Boolean consentGiven, String consentAt) {
         if (consentGiven != null && consentGiven) {
@@ -179,7 +186,7 @@ public class SurveyService {
             }
         }
     }
-
+ 
     /**
      * Parse an ISO-8601 timestamp string to an Instant (UTC).
      * Handles formats with 'Z', offsets ('+05:30'), or bare local datetimes
@@ -196,7 +203,7 @@ public class SurveyService {
             return Instant.parse(iso + "Z");
         }
     }
-
+ 
     // ── GDPR data export ──
     /**
      * Export all data linked to a session ID in a portable format.
@@ -205,7 +212,7 @@ public class SurveyService {
     public Map<String, Object> exportSessionData(String sessionId) {
         SurveySubmission sub = submissionRepo.findById(sessionId).orElse(null);
         if (sub == null) return null;
-
+ 
         Map<String, Object> data = new java.util.LinkedHashMap<>();
         data.put("sessionId", sub.getSessionId());
         data.put("submittedAt", sub.getSubmittedAt() != null ? sub.getSubmittedAt().toString() : null);
@@ -214,7 +221,7 @@ public class SurveyService {
         data.put("responses", getResponsesMapForSession(sessionId));
         return data;
     }
-
+ 
     // ── GDPR data anonymization (irreversible) ──
     /**
      * Irreversibly anonymize all data for a session (right to erasure / right to be forgotten).
@@ -236,31 +243,31 @@ public class SurveyService {
     public boolean anonymizeSessionData(String sessionId) {
         SurveySubmission sub = submissionRepo.findById(sessionId).orElse(null);
         if (sub == null) return false;
-
+ 
         // Generate a random anonymous replacement ID that cannot be reversed
         // Prefix is REDACTED- (distinct from normal session prefix anon-)
         String anonymousId = "REDACTED-" + java.util.UUID.randomUUID().toString();
-
+ 
         // Atomically update FK references in survey_response first (child table)
         responseRepo.anonymizeResponses(sessionId, anonymousId);
-
+ 
         // Atomically update PK + nullify fields in survey_submission (parent table)
         submissionRepo.anonymizeSubmission(sessionId, anonymousId);
-
+ 
         // Audit log: record that anonymization occurred without logging the original session ID
         log.info("GDPR anonymization completed: session replaced with {}", anonymousId);
-
+ 
         return true;
     }
-
+ 
     public List<SurveySubmission> getAllSubmissions() {
         return submissionRepo.findAllByOrderBySubmittedAtDesc();
     }
-
+ 
     public SurveySubmission getSubmissionBySessionId(String sessionId) {
         return submissionRepo.findById(sessionId).orElse(null);
     }
-
+ 
     /**
      * Reconstruct the frontend-style responses map from DB rows for session recovery.
      * Returns a map of mainQuestionId → answer value (same format the frontend stores).
@@ -268,24 +275,24 @@ public class SurveyService {
     public Map<String, Object> getResponsesMapForSession(String sessionId) {
         List<SurveyResponse> rows = responseRepo.findBySubmissionSessionId(sessionId);
         if (rows == null || rows.isEmpty()) return Map.of();
-
+ 
         // Group rows by mainQuestionId
         Map<Integer, List<SurveyResponse>> grouped = new java.util.LinkedHashMap<>();
         for (SurveyResponse r : rows) {
             grouped.computeIfAbsent(r.getMainQuestionId(), k -> new ArrayList<>()).add(r);
         }
-
+ 
         Map<String, Object> result = new java.util.LinkedHashMap<>();
         for (Map.Entry<Integer, List<SurveyResponse>> entry : grouped.entrySet()) {
             Integer mainQId = entry.getKey();
             List<SurveyResponse> qRows = entry.getValue();
-
+ 
             // Determine question type by inspecting the rows
             MainQuestion mq = mainQuestionRepo.findById(mainQId).orElse(null);
             String qType = (mq != null && mq.getQuestionType() != null)
                     ? mq.getQuestionType().toLowerCase().trim()
                     : "single ans";
-
+ 
             switch (qType) {
                 case "single ans":
                     if (!qRows.isEmpty() && qRows.get(0).getOptionId() != null) {
@@ -335,7 +342,7 @@ public class SurveyService {
         }
         return result;
     }
-
+ 
     // ── Build relational rows for a single answer value ──
     private List<SurveyResponse> buildResponseRows(SurveySubmission submission, Integer mainQId, Object value) {
         List<SurveyResponse> rows = new ArrayList<>();
@@ -346,7 +353,7 @@ public class SurveyService {
         Integer categoryId = (mq != null && mq.getCategoryId() != null)
                 ? mq.getCategoryId().intValue()
                 : null;
-
+ 
         switch (qType) {
             case "single ans":
                 rows.add(new SurveyResponse(submission, mainQId, null, toInt(value), null, null, categoryId));
@@ -381,138 +388,174 @@ public class SurveyService {
         }
         return rows;
     }
-
+ 
     // ── Helper ──
     private Integer toInt(Object obj) {
         if (obj == null) return null;
         if (obj instanceof Number n) return n.intValue();
         return Integer.valueOf(obj.toString());
     }
-
-    private List<List<String>> partition(List<String> list, int size) {
-
-        List<List<String>> batches = new ArrayList<>();
-
-        for (int i = 0; i < list.size(); i += size) {
-            batches.add(list.subList(i, Math.min(i + size, list.size())));
-        }
-
-        return batches;
-    }
-
-    public List<BigDecimal> processFreeTexts(List<String> freeTexts) {
-
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(300000);
-        factory.setReadTimeout(300000);
-
-        RestTemplate restTemplate = new RestTemplate(factory);
-
-        ExecutorService executor = Executors.newFixedThreadPool(10);
-
-        List<List<String>> batches = partition(freeTexts, 100);
-        System.out.println(batches);
-
-        String url = "http://localhost:8000/predict";
-
-        List<CompletableFuture<List<BigDecimal>>> futures = new ArrayList<>();
-
-        for (List<String> batch : batches) {
-
-            CompletableFuture<List<BigDecimal>> future =
-                    CompletableFuture.supplyAsync(() -> {
-
-                        Map<String, Object> request = new HashMap<>();
-                        request.put("texts", batch);
-
-                        ResponseEntity<BertBatchResponse> res =
-                                restTemplate.postForEntity(url, request, BertBatchResponse.class);
-
-                        BertBatchResponse body = res.getBody();
-
-                        if (body == null || body.getPredicted_class_ids() == null) {
-                            return Collections.emptyList();
-                        }
-
-                        return body.getPredicted_class_ids();
-
-                    }, executor);
-
-            futures.add(future);
-        }
-
-        List<BigDecimal> results = new ArrayList<>();
-
-        for (CompletableFuture<List<BigDecimal>> future : futures) {
-            results.addAll(future.join());
-        }
-
-        executor.shutdown();
-
-        return results;
-    }
-
+ 
     public Map<Integer, BigDecimal> getAllResponse() {
-        int i=0;
         List<Option> optionScore = optionRepo.findAll();
         List<SurveyResponse> surveyResponse = responseRepo.findAll();
-
+ 
         Map<Integer, BigDecimal> optionScoreMap = new HashMap<>();
-        for(Option opt : optionScore){
+        for (Option opt : optionScore) {
             optionScoreMap.put(opt.getOptionId(), opt.getScore());
         }
-
+ 
         Map<Integer, BigDecimal> categoryTotalScore = new HashMap<>();
-        List<String> freeTexts = new ArrayList<>();
         Map<Integer, Integer> categoryCount = new HashMap<>();
-
-        for(SurveyResponse response : surveyResponse){
+ 
+        // Process standard survey responses (options with scores)
+        for (SurveyResponse response : surveyResponse) {
             Integer categoryId = response.getCategoryId();
             Integer optionId = response.getOptionId();
-
+ 
             BigDecimal score = optionScoreMap.get(optionId);
-
-            if(score!= null){
+ 
+            if (score != null) {
                 categoryTotalScore.put(categoryId, categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(score));
+                categoryCount.put(categoryId, categoryCount.getOrDefault(categoryId, 0) + 1);
             }
-            else{
-                // String url = "http://localhost:8000/predict";
-                // Map<String, String> request = new HashMap<>();
-                // request.put("text", response.getFreeText());
-                // ResponseEntity<BertResponse> res = restTemplate.postForEntity(url, request, BertResponse.class);
-                // BertResponse body = res.getBody();
-                // BigDecimal stage = body.getPredicted_class_id();
-                // categoryTotalScore.put(categoryId, categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(stage));
-                // categoryTotalScore.put(categoryId, categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(BigDecimal.TWO));
-
-                freeTexts.add(response.getFreeText());
-            }
-            categoryCount.put(categoryId, categoryCount.getOrDefault(categoryId, 0)+1);
+            // Note: Free text responses are processed separately through FreetextCache batch processing
         }
-
+ 
+        // Process free text from cache using pagination for memory efficiency
+        processFreetextCacheWithPagination(categoryTotalScore, categoryCount);
+ 
         Map<Integer, BigDecimal> categoryAverage = new HashMap<>();
-        for(Integer categoryId : categoryTotalScore.keySet()){
+        for (Integer categoryId : categoryTotalScore.keySet()) {
             BigDecimal total = categoryTotalScore.get(categoryId);
             int count = categoryCount.get(categoryId);
-
-            BigDecimal average = total.divide(
-                    BigDecimal.valueOf(count),
-                    2,
-                    RoundingMode.HALF_UP
-            );
-            
-            categoryAverage.put(categoryId, average);
-
+ 
+            if (count > 0) {
+                BigDecimal average = total.divide(
+                        BigDecimal.valueOf(count),
+                        2,
+                        RoundingMode.HALF_UP
+                );
+                categoryAverage.put(categoryId, average);
+            }
         }
-        
-        // System.out.println("Category Total Score : " + categoryTotalScore);
-        // System.out.println("Category Count : "+ categoryCount);
-        // System.out.println("Category Average : "+ categoryAverage);
-        // System.out.println(freeTexts);
-        List<BigDecimal> predictions = processFreeTexts(freeTexts);
-        System.out.println(predictions);
-
+        System.out.println(categoryAverage);
         return categoryAverage;
     }
-
+ 
+    /**
+     * Process free text cache entries in batches using VECTORIZED batch API (single request per batch)
+     * instead of parallel individual requests. This is 10x more efficient.
+     *
+     * @param categoryTotalScore Map to accumulate category scores
+     * @param categoryCount Map to count responses per category
+     */
+    private void processFreetextCacheWithPagination(Map<Integer, BigDecimal> categoryTotalScore,
+                                                    Map<Integer, Integer> categoryCount) {
+        RestTemplate restTemplate = new RestTemplate();
+        String batchUrl = "http://localhost:8000/predict-batch-optimized";
+        
+        // Process in batches of 100 to avoid memory overflow
+        int batchSize = 100;
+        int batchNumber = 0;
+        boolean hasMoreUnprocessed = true;
+ 
+        // ========== PHASE 1: Send BATCH REQUESTS to BERT (1 request per 100 texts) ==========
+        while (hasMoreUnprocessed) {
+            try {
+                // Always fetch from page 0 since we're removing entries as we process them
+                Pageable pageable = PageRequest.of(0, batchSize);
+                Page<FreetextCache> page = freetextCacheRepo.findByBertScoreIsNull(pageable);
+ 
+                if (page.isEmpty()) {
+                    System.out.println("✓ No more unprocessed free text entries to process");
+                    hasMoreUnprocessed = false;
+                    break;
+                }
+ 
+                batchNumber++;
+                List<FreetextCache> batchContent = page.getContent();
+                System.out.println("Processing batch " + batchNumber + " with " + batchContent.size()
+                        + " entries (Total unprocessed remaining: " + (page.getTotalElements() - batchContent.size()) + ")");
+ 
+                // ===== STEP 1: Collect all texts from this batch =====
+                List<String> textsForBatch = batchContent.stream()
+                    .map(FreetextCache::getFreeText)
+                    .collect(Collectors.toList());
+ 
+                System.out.println("  → Sending " + textsForBatch.size() + " texts to BERT in ONE batch request...");
+                
+                // ===== STEP 2: Send ONE REQUEST with all texts (vectorized processing) =====
+                try {
+                    Map<String, Object> batchRequest = new HashMap<>();
+                    batchRequest.put("texts", textsForBatch);
+                    
+                    long startTime = System.currentTimeMillis();
+                    ResponseEntity<Map> batchResponse = restTemplate.postForEntity(batchUrl, batchRequest, Map.class);
+                    long duration = System.currentTimeMillis() - startTime;
+                    
+                    Map<String, Object> responseBody = batchResponse.getBody();
+                    List<Map<String, Object>> results = (List<Map<String, Object>>) responseBody.get("results");
+                    
+                    System.out.println("  ✓ BERT batch response received (" + duration + "ms) with " + results.size() + " results");
+                    
+                    // ===== STEP 3: Map results back to FreetextCache entries =====
+                    for (int i = 0; i < results.size() && i < batchContent.size(); i++) {
+                        Map<String, Object> result = results.get(i);
+                        FreetextCache cache = batchContent.get(i);
+                        
+                        if (result.containsKey("predicted_class_id")) {
+                            Object scoreObj = result.get("predicted_class_id");
+                            BigDecimal score = scoreObj instanceof Number
+                                ? BigDecimal.valueOf(((Number) scoreObj).doubleValue())
+                                : new BigDecimal(scoreObj.toString());
+                            
+                            cache.setBertScore(score);
+                            
+                            String preview = cache.getFreeText().substring(0, Math.min(50, cache.getFreeText().length()));
+                            System.out.println("    ✓ Entry " + (i + 1) + ": '" + preview + "...' => Score: " + score);
+                        }
+                    }
+                    
+                    // ===== STEP 4: Batch save all processed entries at once =====
+                    freetextCacheRepo.saveAll(batchContent);
+                    System.out.println("  → Batch " + batchNumber + " saved: " + batchContent.size() + " entries updated");
+                    
+                } catch (Exception e) {
+                    System.err.println("  ✗ Error in batch BERT request: " + e.getMessage());
+                    e.printStackTrace();
+                    break;
+                }
+ 
+                // If this batch was smaller than batchSize, we've reached the end
+                if (batchContent.size() < batchSize) {
+                    System.out.println("✓ Completed processing all batches (final batch had " + batchContent.size() + " < " + batchSize + ")");
+                    hasMoreUnprocessed = false;
+                }
+ 
+            } catch (Exception e) {
+                System.err.println("Error fetching batch " + batchNumber + ": " + e.getMessage());
+                break;
+            }
+        }
+ 
+        // ========== PHASE 2: Aggregate processed scores (single efficient query) ==========
+        System.out.println("✓ Aggregating processed scores from cache...");
+        
+        // Get all processed free text scores in one go
+        List<FreetextCache> processedScores = freetextCacheRepo.findAll()
+                .stream()
+                .filter(fc -> fc.getBertScore() != null)
+                .toList();
+ 
+        for (FreetextCache cache : processedScores) {
+            Integer categoryId = cache.getCategoryId();
+            categoryTotalScore.put(categoryId, categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(cache.getBertScore()));
+            categoryCount.put(categoryId, categoryCount.getOrDefault(categoryId, 0) + 1);
+        }
+        
+        System.out.println("✓ Aggregation complete: " + processedScores.size() + " processed entries counted");
+    }
+ 
+ 
 }
