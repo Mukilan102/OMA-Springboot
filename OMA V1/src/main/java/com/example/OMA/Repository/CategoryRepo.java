@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository;
 import com.example.OMA.Model.Category;
 
 @Repository
-public interface CategoryRepo extends JpaRepository<Category, Long> {
+public interface CategoryRepo extends JpaRepository<Category, Integer> {
 
     List<Category> findAllByOrderByCategoryId();
 }

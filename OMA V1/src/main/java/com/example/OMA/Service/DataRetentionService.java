@@ -13,8 +13,15 @@ import java.util.List;
 import com.example.OMA.Repository.SurveySubmissionRepo;
 
 /**
- * Automatically anonymizes survey data that exceeds the configured retention period.
- * Runs daily at 2:00 AM UTC.
+ * Automatically anonymizes survey data that exceeds the configured retention period
+ * (default 730 days / 24 months). Runs daily at 2:00 AM UTC.
+ *
+ * Open-text responses are treated as personal data (respondents may voluntarily
+ * include identifying details) and are deleted along with the session identifier
+ * during anonymization. Structured response data (option selections, rankings)
+ * is preserved in anonymized form for benchmarking and research.
+ *
+ * All job runs and individual deletion actions are audit-logged.
  */
 @Service
 public class DataRetentionService {
@@ -24,7 +31,7 @@ public class DataRetentionService {
     private final SurveySubmissionRepo submissionRepo;
     private final SurveyService surveyService;
 
-    @Value("${data.retention.days:90}")
+    @Value("${data.retention.days:730}")
     private int retentionDays;
 
     public DataRetentionService(SurveySubmissionRepo submissionRepo,
@@ -36,25 +43,30 @@ public class DataRetentionService {
     @Scheduled(cron = "0 0 2 * * *")
     public void anonymizeExpiredSessions() {
         Instant cutoff = Instant.now().minus(retentionDays, ChronoUnit.DAYS);
+        log.info("AUDIT retention-job started: cutoff={} (retention={}d)", cutoff, retentionDays);
+
         List<String> expiredIds = submissionRepo.findSessionIdsSubmittedBefore(cutoff);
 
         if (expiredIds.isEmpty()) {
-            log.info("Data retention: no sessions older than {} days found", retentionDays);
+            log.info("AUDIT retention-job finished: 0 sessions eligible for anonymization");
             return;
         }
 
-        log.info("Data retention: anonymizing {} sessions older than {} days", expiredIds.size(), retentionDays);
+        log.info("AUDIT retention-job: {} sessions eligible for anonymization", expiredIds.size());
 
         int success = 0;
+        int failed = 0;
         for (String sessionId : expiredIds) {
             try {
                 surveyService.anonymizeSessionData(sessionId);
                 success++;
             } catch (Exception e) {
-                log.error("Data retention: failed to anonymize a session", e);
+                failed++;
+                log.error("AUDIT retention-job: failed to anonymize a session", e);
             }
         }
 
-        log.info("Data retention: completed — {}/{} sessions anonymized", success, expiredIds.size());
+        log.info("AUDIT retention-job finished: {}/{} anonymized, {} failed",
+                success, expiredIds.size(), failed);
     }
 }

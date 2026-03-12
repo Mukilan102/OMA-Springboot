@@ -25,14 +25,12 @@ public interface SurveyResponseRepo extends JpaRepository<SurveyResponse, Long> 
      void deleteBySubmissionSessionId(String sessionId);
 
     /**
-     * Atomically update the FK session_id on all response rows and nullify free_text.
-     * Part of the irreversible anonymization flow.
+     * Delete all free-text response rows for a session (personal data — may contain
+     * voluntarily disclosed identifying details). Called before PK anonymization.
+     * Deleting the whole row prevents null free_text from reaching the NLP model.
      */
     @Modifying
-    @Query(value = "UPDATE survey_response " +
-            "SET session_id = :newSessionId, " +
-            "    free_text = NULL " +
-            "WHERE session_id = :oldSessionId",
+    @Query(value = "DELETE FROM survey_response WHERE session_id = :sessionId AND free_text IS NOT NULL",
             nativeQuery = true)
-    int anonymizeResponses(String oldSessionId, String newSessionId);
+    int deleteFreeTextResponses(String sessionId);
 }

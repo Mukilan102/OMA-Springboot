@@ -6,10 +6,14 @@ import com.example.OMA.DTO.SaveProgressDTO;
 import com.example.OMA.DTO.SurveySubmissionDTO;
 import com.example.OMA.Model.MainQuestion;
 import com.example.OMA.Model.Option;
+import com.example.OMA.Model.SubQuestion;
+import com.example.OMA.Model.Category;
 import com.example.OMA.Model.SurveyResponse;
 import com.example.OMA.Model.SurveySubmission;
+import com.example.OMA.Repository.CategoryRepo;
 import com.example.OMA.Repository.MainQuestionRepo;
 import com.example.OMA.Repository.OptionRepo;
+import com.example.OMA.Repository.SubQuestionRepo;
 import com.example.OMA.Repository.SurveyResponseRepo;
 import com.example.OMA.Repository.SurveySubmissionRepo;
 
@@ -37,17 +41,22 @@ public class SurveyService {
     private final SurveySubmissionRepo submissionRepo;
     private final SurveyResponseRepo responseRepo;
     private final MainQuestionRepo mainQuestionRepo;
-
     private final OptionRepo optionRepo;
+    private final SubQuestionRepo subQuestionRepo;
+    private final CategoryRepo categoryRepo;
 
     public SurveyService(SurveySubmissionRepo submissionRepo,
                          SurveyResponseRepo responseRepo,
                          MainQuestionRepo mainQuestionRepo,
-                        OptionRepo optionRepo) {
+                         OptionRepo optionRepo,
+                         SubQuestionRepo subQuestionRepo,
+                         CategoryRepo categoryRepo) {
         this.submissionRepo = submissionRepo;
         this.responseRepo = responseRepo;
         this.mainQuestionRepo = mainQuestionRepo;
         this.optionRepo = optionRepo;
+        this.subQuestionRepo = subQuestionRepo;
+        this.categoryRepo = categoryRepo;
     }
 
     // ── Save a single answer (called on Next click, debounced 2 s from frontend) ──
@@ -201,22 +210,125 @@ public class SurveyService {
         return data;
     }
 
+    /**
+     * Export all data linked to a session ID as a human-readable CSV string.
+     * Resolves all IDs to actual question text, option text, sub-question text,
+     * and category names so the output is usable without internal knowledge.
+     */
+    public String exportSessionDataAsCsv(String sessionId) {
+        SurveySubmission sub = submissionRepo.findById(sessionId).orElse(null);
+        if (sub == null) return null;
+
+        List<SurveyResponse> responses = responseRepo.findBySubmissionSessionId(sessionId);
+        if (responses == null || responses.isEmpty()) return null;
+
+        // Build lookup maps
+        Map<Integer, MainQuestion> questionMap = new HashMap<>();
+        for (MainQuestion q : mainQuestionRepo.findAll()) {
+            questionMap.put(q.getMainQuestionId(), q);
+        }
+        Map<Integer, com.example.OMA.Model.SubQuestion> subQuestionMap = new HashMap<>();
+        for (com.example.OMA.Model.SubQuestion sq : subQuestionRepo.findAll()) {
+            subQuestionMap.put(sq.getSubQuestionId(), sq);
+        }
+        Map<Integer, Option> optionMap = new HashMap<>();
+        for (Option o : optionRepo.findAll()) {
+            optionMap.put(o.getOptionId(), o);
+        }
+        Map<Integer, String> categoryNameMap = new HashMap<>();
+        for (com.example.OMA.Model.Category c : categoryRepo.findAll()) {
+            categoryNameMap.put(c.getCategoryId(), c.getName());
+        }
+
+        // Sort by mainQuestionId, then subQuestionId, then rankPosition
+        responses.sort((a, b) -> {
+            int cmp = Integer.compare(a.getMainQuestionId(), b.getMainQuestionId());
+            if (cmp != 0) return cmp;
+            int subA = a.getSubQuestionId() != null ? a.getSubQuestionId() : 0;
+            int subB = b.getSubQuestionId() != null ? b.getSubQuestionId() : 0;
+            cmp = Integer.compare(subA, subB);
+            if (cmp != 0) return cmp;
+            int posA = a.getRankPosition() != null ? a.getRankPosition() : 0;
+            int posB = b.getRankPosition() != null ? b.getRankPosition() : 0;
+            return Integer.compare(posA, posB);
+        });
+
+        StringBuilder csv = new StringBuilder();
+
+        // ── Metadata section (GDPR Art. 15 — include all personal data held) ──
+        csv.append("Session ID,").append(escapeCsv(sub.getSessionId())).append('\n');
+        csv.append("Submitted At,").append(sub.getSubmittedAt() != null ? sub.getSubmittedAt().toString() : "").append('\n');
+        csv.append("Consent Given,").append(sub.getConsentGiven() != null ? sub.getConsentGiven().toString() : "").append('\n');
+        csv.append("Consent At,").append(sub.getConsentAt() != null ? sub.getConsentAt().toString() : "").append('\n');
+        csv.append("Export Date,").append(java.time.Instant.now().toString()).append('\n');
+        csv.append('\n');
+
+        // ── Response data ──
+        csv.append("Category,Question,Sub-Question,Response,Rank Position\n");
+
+        for (SurveyResponse r : responses) {
+            String categoryName = r.getCategoryId() != null
+                    ? categoryNameMap.getOrDefault(r.getCategoryId(), "")
+                    : "";
+
+            MainQuestion mq = questionMap.get(r.getMainQuestionId());
+            String questionText = mq != null ? mq.getQuestionText() : "";
+
+            String subQuestionText = "";
+            if (r.getSubQuestionId() != null) {
+                com.example.OMA.Model.SubQuestion sq = subQuestionMap.get(r.getSubQuestionId());
+                if (sq != null) subQuestionText = sq.getQuestionText();
+            }
+
+            String response;
+            if (r.getFreeText() != null && !r.getFreeText().isBlank()) {
+                response = r.getFreeText();
+            } else if (r.getOptionId() != null) {
+                Option opt = optionMap.get(r.getOptionId());
+                response = opt != null ? opt.getOptionText() : "";
+            } else {
+                response = "";
+            }
+
+            String rankPos = r.getRankPosition() != null ? String.valueOf(r.getRankPosition()) : "";
+
+            csv.append(escapeCsv(categoryName)).append(',');
+            csv.append(escapeCsv(questionText)).append(',');
+            csv.append(escapeCsv(subQuestionText)).append(',');
+            csv.append(escapeCsv(response)).append(',');
+            csv.append(escapeCsv(rankPos)).append('\n');
+        }
+
+        return csv.toString();
+    }
+
+    private static String escapeCsv(String value) {
+        if (value == null || value.isEmpty()) return "";
+        if (value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
+    }
+
     // ── GDPR data anonymization (irreversible) ──
     /**
      * Irreversibly anonymize all data for a session (right to erasure / right to be forgotten).
      *
-     * Approach: Replace the original session_id with a random ANON-<UUID> value
-     * in both survey_submission (PK) and survey_response (FK) tables atomically.
-     * Also nullifies all temporal fields, consent fields, and free-text responses.
+     * Approach: Replace the original session_id with a random REDACTED-<UUID> value
+     * in the survey_submission table. The FK on survey_response has ON UPDATE CASCADE,
+     * so PostgreSQL automatically propagates the new session_id to all child rows.
+     * Free-text responses are nullified (treated as personal data — respondents may
+     * voluntarily include identifying details). Temporal and consent fields in the
+     * submission are nullified.
      *
      * After this operation:
      * - The original session ID no longer exists anywhere in the database
+     * - Free-text responses are permanently erased
      * - The anonymized rows cannot be linked back to any session or person
-     * - The structured response data (option selections, rankings) is preserved
+     * - Structured response data (option selections, rankings) is preserved
      *   for aggregated organisational analysis
-     * - Free-text responses are erased (may contain inadvertent PII)
-     * - This is irreversible: even with database logs or rollbacks, the mapping
-     *   between the original session ID and the anonymous ID is never recorded
+     * - This is irreversible: the mapping between the original session ID
+     *   and the anonymous ID is never recorded
      */
     @Transactional
     public boolean anonymizeSessionData(String sessionId) {
@@ -227,14 +339,16 @@ public class SurveyService {
         // Prefix is REDACTED- (distinct from normal session prefix anon-)
         String anonymousId = "REDACTED-" + java.util.UUID.randomUUID().toString();
 
-        // Atomically update FK references in survey_response first (child table)
-        responseRepo.anonymizeResponses(sessionId, anonymousId);
+        // Delete free-text response rows entirely (may contain voluntarily disclosed PII).
+        // Removing the rows prevents null free_text from being sent to the NLP model.
+        responseRepo.deleteFreeTextResponses(sessionId);
 
-        // Atomically update PK + nullify fields in survey_submission (parent table)
+        // Update PK + nullify fields in survey_submission
+        // ON UPDATE CASCADE on the FK automatically updates survey_response.session_id
         submissionRepo.anonymizeSubmission(sessionId, anonymousId);
 
         // Audit log: record that anonymization occurred without logging the original session ID
-        log.info("GDPR anonymization completed: session replaced with {}", anonymousId);
+        log.info("GDPR erasure completed: session replaced with {}", anonymousId);
 
         return true;
     }

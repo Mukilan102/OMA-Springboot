@@ -11,4 +11,5 @@ CREATE TABLE IF NOT EXISTS survey_response (
     CONSTRAINT fk_submission
         FOREIGN KEY (session_id)
         REFERENCES survey_submission(session_id)
+        ON UPDATE CASCADE
 );

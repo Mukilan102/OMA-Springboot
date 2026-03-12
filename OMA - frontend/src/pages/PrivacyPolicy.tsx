@@ -36,7 +36,7 @@ export default function PrivacyPolicy() {
       {/* Content */}
       <main className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
         <h1 className="text-3xl font-semibold text-[#002D72]">Privacy Policy</h1>
-        <p className="text-sm text-gray-500">Last updated: March 9, 2026</p>
+        <p className="text-sm text-gray-500">Last updated: March 12, 2026</p>
 
         <section className="bg-white rounded-2xl shadow-md px-8 py-8 space-y-8 text-[#4A4A4A] leading-relaxed">
           {/* 1 - Data Controller */}
@@ -96,7 +96,10 @@ export default function PrivacyPolicy() {
             <ul className="list-disc pl-6 space-y-1">
               <li>
                 <strong>Survey responses</strong> - multiple-choice selections, rankings, and
-                free-text answers
+                free-text answers. Please note that free-text responses may contain
+                personal information voluntarily provided by respondents; such data is
+                treated as personal data and is subject to the retention and deletion
+                rules described in Section 8.
               </li>
               <li>
                 <strong>Random session identifier</strong> - a UUID generated at the start of
@@ -133,9 +136,12 @@ export default function PrivacyPolicy() {
             <p>
               We strongly advise respondents not to include directly identifying personal
               information (such as names or contact details) in free-text responses.
-              Should such information be inadvertently provided, it will be processed in
-              accordance with this Privacy Policy and may be removed during report
-              preparation where identified.
+              However, we recognise that respondents may voluntarily include personal
+              information. Any such data is treated as personal data, retained for up
+              to 24 months for benchmarking and research purposes, and deleted
+              automatically at the end of that period or earlier upon a valid erasure
+              request (see Section 8). Access to raw free-text responses and
+              session-linked data is restricted to authorised roles only.
             </p>
           </div>
 
@@ -246,19 +252,27 @@ export default function PrivacyPolicy() {
             </p>
             <ul className="list-disc pl-6 space-y-1">
               <li>
-                Identifiable session data (i.e., data linked to a session UUID) is retained
-                only for the period required to complete reporting and analysis, and in
-                any event no longer than <strong>90 days</strong> from submission. After
-                this period, data is automatically and irreversibly anonymised.
+                <strong>Session-linked data</strong> (session identifier, timestamps, consent
+                records, and free-text responses) is retained for up to{" "}
+                <strong>24 months</strong> from submission for benchmarking, research, and
+                organisational development. Free-text responses are treated as personal
+                data because respondents may voluntarily include identifying details.
               </li>
               <li>
-                Upon an erasure request, or upon expiry of the retention period, data is
-                irreversibly anonymised by permanently replacing the session identifier,
-                erasing all timestamps and consent records, and deleting free-text
-                responses. The remaining structured response data is retained in fully
-                anonymised form for benchmarking, research, and organisational development
-                purposes. Once anonymised, such data no longer constitutes personal data
-                under the GDPR.
+                <strong>Automatic deletion</strong> - A scheduled backend job runs daily
+                and automatically anonymizes all sessions older than 24 months. During
+                anonymization the session identifier is permanently replaced with a
+                random anonymous value, all timestamps and consent records are erased,
+                and free-text responses are permanently deleted. The remaining
+                structured response data (multiple-choice selections and rankings) is
+                retained in fully anonymised form and no longer constitutes personal
+                data under the GDPR.
+              </li>
+              <li>
+                <strong>Early deletion on request</strong> - If you submit a valid
+                erasure request before the 24-month period ends, your session-linked
+                data and free-text responses are deleted immediately in the same manner
+                described above.
               </li>
               <li>
                 Your browser stores a session identifier in local storage and a cookie,
@@ -268,8 +282,9 @@ export default function PrivacyPolicy() {
             </ul>
             <p>
               We do not retain identifiable data indefinitely. All identifiable session
-              data is automatically anonymised after the retention period, or immediately
-              upon an erasure request.
+              data is automatically anonymised after the 24-month retention period, or
+              immediately upon a valid erasure request. All deletion executions and
+              retention-job runs are audit-logged.
             </p>
           </div>
 
@@ -358,11 +373,12 @@ export default function PrivacyPolicy() {
                 <strong>Right to Erasure</strong> (Article 17) - Request the irreversible
                 anonymization of data linked to your session ID. Upon such request, your
                 session identifier is permanently replaced with a random anonymous value,
-                all timestamps and consent records are erased, and any free-text responses
-                are deleted. The remaining structured response data (multiple-choice
-                selections and rankings) is retained in fully anonymized form for
-                aggregated organisational analysis and can no longer be linked to any
-                session or individual.
+                all timestamps and consent records are erased, and free-text responses
+                are permanently deleted. The remaining structured response data
+                (multiple-choice selections and rankings) is retained in fully anonymized
+                form for aggregated organisational analysis and can no longer be linked
+                to any session or individual. You may submit a deletion request at any
+                time during the 24-month retention period.
               </li>
               <li>
                 <strong>Right to Data Portability</strong> (Article 20) - Receive your data
@@ -402,10 +418,11 @@ export default function PrivacyPolicy() {
             <p>
               Please note that where data has already been irreversibly anonymised and
               incorporated into aggregated datasets, it may no longer be possible to
-              identify or extract individual responses. Specifically, after the 90-day
-              retention period, your session identifier is permanently replaced and your
-              data can no longer be located. Any request received after this period will
-              be responded to confirming that no identifiable data remains.
+              identify or extract individual responses. Specifically, after the 24-month
+              retention period, your session identifier is permanently replaced, free-text
+              responses are deleted, and your data can no longer be located. Any request
+              received after this period will be responded to confirming that no
+              identifiable data remains.
             </p>
           </div>
 

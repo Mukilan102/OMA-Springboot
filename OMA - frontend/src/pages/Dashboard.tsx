@@ -21,7 +21,19 @@ import { Footer } from "../components/Footer";
 import { useScrollAnimation } from "../hooks/useScrollAnimation";
 import logo from "../assets/HARTS Consulting LBG.png";
 import EvoraLogo from "../assets/Evoralogo.png";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Input } from "../components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../components/ui/alert-dialog";
 
 const CATEGORY_MAPPING: { [key: number]: string } = {
   1: 'Leadership',
@@ -46,6 +58,11 @@ export default function Dashboard() {
   const [estimatedMaintenanceMinutes, setEstimatedMaintenanceMinutes] = useState(30);
   const [redirectMessage, setRedirectMessage] = useState<string | null>(null);
   const hasRunRef = useRef(false);  // Prevent effect from running multiple times
+
+  // GDPR session data management state
+  const [gdprSessionId, setGdprSessionId] = useState('');
+  const [gdprLoading, setGdprLoading] = useState(false);
+  const [gdprMessage, setGdprMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Fetch survey score data on mount - handles both authentication and data fetching
   useEffect(() => {
@@ -152,6 +169,63 @@ export default function Dashboard() {
       navigate("/login");
     }
   };
+
+  // GDPR: Export session data as CSV download
+  const handleExportSessionData = useCallback(async () => {
+    const trimmedId = gdprSessionId.trim();
+    if (!trimmedId) return;
+    setGdprLoading(true);
+    setGdprMessage(null);
+    try {
+      const response = await apiClient.fetch(`/survey/session/${encodeURIComponent(trimmedId)}/export`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => null);
+        setGdprMessage({ type: 'error', text: err?.message || `No data found (HTTP ${response.status})` });
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `session-data-${trimmedId}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setGdprMessage({ type: 'success', text: 'Session data exported successfully.' });
+    } catch {
+      setGdprMessage({ type: 'error', text: 'Failed to export session data. Please try again.' });
+    } finally {
+      setGdprLoading(false);
+    }
+  }, [gdprSessionId]);
+
+  // GDPR: Delete (anonymize) session data
+  const handleDeleteSessionData = useCallback(async () => {
+    const trimmedId = gdprSessionId.trim();
+    if (!trimmedId) return;
+    setGdprLoading(true);
+    setGdprMessage(null);
+    try {
+      const response = await apiClient.fetch(`/survey/session/${encodeURIComponent(trimmedId)}/data`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        setGdprMessage({ type: 'error', text: result?.message || `Failed to delete data (HTTP ${response.status})` });
+        return;
+      }
+      setGdprMessage({ type: 'success', text: result?.message || 'Session data has been irreversibly anonymized.' });
+      setGdprSessionId('');
+    } catch {
+      setGdprMessage({ type: 'error', text: 'Failed to delete session data. Please try again.' });
+    } finally {
+      setGdprLoading(false);
+    }
+  }, [gdprSessionId]);
 
   // Calculate overall score as average of all category scores
   useEffect(() => {
@@ -511,6 +585,93 @@ export default function Dashboard() {
               </div>
             </Card>
           </div>
+        </div>
+
+        {/* GDPR Session Data Management */}
+        <div className="space-y-6 sm:space-y-8 scroll-animate">
+          <div className="space-y-2">
+            <h3 className="text-2xl sm:text-3xl lg:text-4xl font-light text-[#002D72]">
+              Session Data Management
+            </h3>
+            <p className="text-sm sm:text-base lg:text-lg text-[#4A4A4A]">
+              Export or delete individual survey session data (GDPR rights of access &amp; erasure).
+              Session data and free-text responses are retained for up to 24 months and auto-deleted thereafter.
+            </p>
+          </div>
+
+          <Card className="bg-white rounded-xl sm:rounded-2xl shadow-md px-4 sm:px-8 py-6 sm:py-8 space-y-6 gradient-border-hover">
+            <div className="space-y-4">
+              <label htmlFor="gdpr-session-id" className="block text-sm font-medium text-[#4A4A4A]">
+                Session ID
+              </label>
+              <Input
+                id="gdpr-session-id"
+                type="text"
+                placeholder="e.g. anon-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                value={gdprSessionId}
+                onChange={(e) => {
+                  setGdprSessionId(e.target.value);
+                  setGdprMessage(null);
+                }}
+                className="max-w-xl"
+                disabled={gdprLoading}
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={handleExportSessionData}
+                disabled={!gdprSessionId.trim() || gdprLoading}
+                className="bg-[#008489] hover:bg-[#006d71] text-white"
+              >
+                {gdprLoading ? 'Processing...' : 'Export Session Data'}
+              </Button>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    disabled={!gdprSessionId.trim() || gdprLoading}
+                    className="text-red-600 border-red-600 hover:bg-red-600 hover:text-white"
+                  >
+                    Delete Session Data
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Irreversible Action</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently anonymize all data for session{' '}
+                      <span className="font-mono font-semibold break-all">{gdprSessionId.trim()}</span>.
+                      Free-text responses will be erased and the session ID will be replaced with a redacted identifier.
+                      This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteSessionData}
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      Delete Permanently
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+
+            {gdprMessage && (
+              <div
+                className={`text-sm rounded-lg px-4 py-3 ${
+                  gdprMessage.type === 'success'
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : 'bg-red-50 text-red-700 border border-red-200'
+                }`}
+              >
+                {gdprMessage.text}
+              </div>
+            )}
+          </Card>
         </div>
 
         {/* Contact Us Section */}

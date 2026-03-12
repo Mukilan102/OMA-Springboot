@@ -17,6 +17,7 @@ import { ChevronLeft, ChevronRight, Loader2, CheckCircle2, WifiOff, RefreshCw, A
 import logo from "../assets/HARTS Consulting LBG.png";
 import { QuestionRenderer } from "../components/survey";
 import { useAutoSave } from "../hooks/useAutoSave";
+import { CONSENT_VERSION } from "../config/gdpr";
 
 import type { SurveyCategory, SurveyQuestion, SurveyQuestionType, ResponseValue } from "../types/survey";
 
@@ -488,6 +489,7 @@ export default function Survey() {
         responses,
         consentGiven: !!consentAt,
         consentAt,
+        consentVersion: CONSENT_VERSION,
       };
       const res = await apiClient.fetch("/survey/submit", {
         method: "POST",

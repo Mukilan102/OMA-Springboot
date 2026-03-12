@@ -40,10 +40,10 @@ public class SurveyController {
             body.put("success", true);
             return ResponseEntity.ok(body);
         } catch (Exception e) {
-            log.error("save-answer failed", e);
+            log.error("save-answer failed: {}", e.getClass().getSimpleName());
             Map<String, Object> err = new HashMap<>();
             err.put("success", false);
-            err.put("message", e.getMessage());
+            err.put("message", "Save failed");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
         }
     }
@@ -61,10 +61,10 @@ public class SurveyController {
             body.put("success", true);
             return ResponseEntity.ok(body);
         } catch (Exception e) {
-            log.error("save-progress failed", e);
+            log.error("save-progress failed: {}", e.getClass().getSimpleName());
             Map<String, Object> err = new HashMap<>();
             err.put("success", false);
-            err.put("message", e.getMessage());
+            err.put("message", "Save failed");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
         }
     }
@@ -105,7 +105,7 @@ public class SurveyController {
             body.put("score", verificationResult.get("score"));
             return ResponseEntity.ok(body);
         } catch (Exception e) {
-            log.error("verify-session failed", e);
+            log.error("verify-session failed: {}", e.getClass().getSimpleName());
             Map<String, Object> err = new HashMap<>();
             err.put("success", false);
             err.put("message", "Verification error");
@@ -127,10 +127,10 @@ public class SurveyController {
             body.put("sessionId", saved.getSessionId());
             return ResponseEntity.ok(body);
         } catch (Exception e) {
-            log.error("submit failed", e);
+            log.error("submit failed: {}", e.getClass().getSimpleName());
             Map<String, Object> err = new HashMap<>();
             err.put("success", false);
-            err.put("message", e.getMessage());
+            err.put("message", "Submission failed");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
         }
     }
@@ -166,7 +166,7 @@ public class SurveyController {
             body.put("responses", responses);
             return ResponseEntity.ok(body);
         } catch (Exception e) {
-            log.error("session-responses failed", e);
+            log.error("session-responses failed: {}", e.getClass().getSimpleName());
             Map<String, Object> err = new HashMap<>();
             err.put("found", false);
             err.put("message", "Failed to retrieve session data");
@@ -183,21 +183,23 @@ public class SurveyController {
     // ── GDPR Data Rights Endpoints ──
 
     /**
-     * Export all data linked to a session ID (GDPR right of access / portability).
-     * Returns the session metadata and all responses in JSON format.
+     * Export all data linked to a session ID as CSV (GDPR right of access / portability).
+     * Resolves all IDs to human-readable question text, option text, category names.
      */
     @GetMapping("/session/{sessionId}/export")
-    public ResponseEntity<Map<String, Object>> exportSessionData(@PathVariable String sessionId) {
+    public ResponseEntity<?> exportSessionData(@PathVariable String sessionId) {
         try {
-            Map<String, Object> data = surveyService.exportSessionData(sessionId);
-            if (data == null) {
+            String csv = surveyService.exportSessionDataAsCsv(sessionId);
+            if (csv == null) {
                 Map<String, Object> err = new HashMap<>();
                 err.put("found", false);
                 err.put("message", "No data found for this session ID");
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err);
             }
-            data.put("exportedAt", java.time.Instant.now().toString());
-            return ResponseEntity.ok(data);
+            return ResponseEntity.ok()
+                    .header("Content-Type", "text/csv; charset=UTF-8")
+                    .header("Content-Disposition", "attachment; filename=\"session-export.csv\"")
+                    .body(csv);
         } catch (Exception e) {
             Map<String, Object> err = new HashMap<>();
             err.put("success", false);
@@ -209,8 +211,9 @@ public class SurveyController {
     /**
      * Irreversibly anonymize all data linked to a session ID (GDPR right to erasure).
      * Replaces the session ID with a random anonymous value, nullifies timestamps,
-     * consent fields, and free-text responses. Structured response data is preserved
-     * in anonymized form for aggregated analysis.
+     * consent fields, and free-text responses (treated as personal data). Structured
+     * response data (option selections, rankings) is preserved in anonymized form
+     * for aggregated analysis.
      */
     @DeleteMapping("/session/{sessionId}/data")
     public ResponseEntity<Map<String, Object>> deleteSessionData(@PathVariable String sessionId) {

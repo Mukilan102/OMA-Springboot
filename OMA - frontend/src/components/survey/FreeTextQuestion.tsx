@@ -16,9 +16,15 @@ export function FreeTextQuestion({ value, onChange }: FreeTextQuestionProps) {
                    outline-none transition-all duration-200 resize-none
                    placeholder:text-gray-400 text-[#002D72]"
       />
-      <p className="text-xs text-[#4A4A4A]/70 text-right">
-        {(value?.length || 0)} characters
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-black italic">
+          Please do not include personal information such as names, email addresses, or other identifiers.
+        </p>
+
+        <p className="text-xs text-[#4A4A4A]/70">
+          {(value?.length || 0)} characters
+        </p>
+      </div>
     </div>
   );
 }

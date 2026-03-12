@@ -43,7 +43,7 @@ export function MultiAnswerQuestion({ options, value, onChange }: MultiAnswerQue
           type="button"
           onClick={() => toggleOption(option.option_id)}
           // Added 'justify-start' and ensured 'text-left' is here to override button defaults
-          className={`w-full flex items-start justify-start text-left gap-4 p-4 rounded-xl border-2 transition-all duration-200 ${
+          className={`w-full flex items-start justify-start text-left gap-4 p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer ${
             isSelected
               ? "border-[#008489] bg-[#008489]/5 shadow-md"
               : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"

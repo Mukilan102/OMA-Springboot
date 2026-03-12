@@ -119,11 +119,14 @@ public class SecurityConfig {
                 // Protected endpoints - require authentication
                 .requestMatchers("/api/survey/survey_score").authenticated()
                 .requestMatchers("/api/survey/test-auth").authenticated()
+                .requestMatchers("/api/survey/session/*/export").authenticated()
+                .requestMatchers("/api/survey/session/*/data").authenticated()
                 .requestMatchers("/api/credential/check").authenticated()
                 .requestMatchers("/api/credential/logout").authenticated()
+                .requestMatchers("/api/credential/register").authenticated()
                 // Public endpoints - allow all
+                
                 .requestMatchers("/api/credential/login").permitAll()
-                .requestMatchers("/api/credential/register").permitAll()
                 .requestMatchers("/api/credential/health").permitAll()
                 .requestMatchers("/api/survey/**").permitAll()
                 .requestMatchers("/api/category/**").permitAll()

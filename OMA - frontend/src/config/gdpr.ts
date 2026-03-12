@@ -40,3 +40,7 @@ export const AWS_HOSTING_REGION =
 
 export const GOVERNING_LAW_COUNTRY =
   import.meta.env.VITE_GDPR_GOVERNING_LAW ?? "Germany";
+
+/** Bump this every time the consent text changes. Must match backend gdpr.consent.version. */
+export const CONSENT_VERSION =
+  import.meta.env.VITE_GDPR_CONSENT_VERSION ?? "1.0";
