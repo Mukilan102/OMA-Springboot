@@ -30,7 +30,7 @@ import java.util.Map;
 public class CredentialController {
     
     private static final Logger logger = LoggerFactory.getLogger(CredentialController.class);
-    private static final String BERT_MODEL_URL = "http://localhost:8000/predict";
+    private static final String BERT_MODEL_URL = "http://localhost:8000/health";
 
     @Value("${cookie.secure:false}")
     private boolean cookieSecure;
@@ -254,12 +254,9 @@ public class CredentialController {
             factory.setReadTimeout(2000);     // 2 second read timeout
             restTemplate.setRequestFactory(factory);
             
-            Map<String, String> testRequest = new HashMap<>();
-            testRequest.put("text", "health");
-            
-            ResponseEntity<?> response = restTemplate.postForEntity(
-                    BERT_MODEL_URL, 
-                    testRequest, 
+            // Use GET request (not POST) for /health endpoint
+            ResponseEntity<?> response = restTemplate.getForEntity(
+                    BERT_MODEL_URL,  // GET to /health
                     String.class
             );
             
