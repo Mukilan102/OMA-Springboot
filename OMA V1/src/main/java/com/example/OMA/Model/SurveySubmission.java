@@ -15,13 +15,10 @@ public class SurveySubmission implements Persistable<String> {
     @Column(name = "session_id", nullable = false)
     private String sessionId;
 
-    @Column(name = "started_at", nullable = false)
-    private Instant startedAt;
-
     @Column(name = "submitted_at")
     private Instant submittedAt;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at")
     private Instant createdAt;
 
     @Column(name = "consent_given")
@@ -40,9 +37,8 @@ public class SurveySubmission implements Persistable<String> {
         this.createdAt = Instant.now();
     }
 
-    public SurveySubmission(String sessionId, Instant startedAt, Instant submittedAt) {
+    public SurveySubmission(String sessionId, Instant submittedAt) {
         this.sessionId = sessionId;
-        this.startedAt = startedAt;
         this.submittedAt = submittedAt;
         this.createdAt = Instant.now();
     }
@@ -59,9 +55,6 @@ public class SurveySubmission implements Persistable<String> {
 
     public String getSessionId() { return sessionId; }
     public void setSessionId(String sessionId) { this.sessionId = sessionId; }
-
-    public Instant getStartedAt() { return startedAt; }
-    public void setStartedAt(Instant startedAt) { this.startedAt = startedAt; }
 
     public Instant getSubmittedAt() { return submittedAt; }
     public void setSubmittedAt(Instant submittedAt) { this.submittedAt = submittedAt; }

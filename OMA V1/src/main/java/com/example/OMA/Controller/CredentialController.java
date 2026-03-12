@@ -1,5 +1,6 @@
 package com.example.OMA.Controller;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,7 +30,10 @@ import java.util.Map;
 public class CredentialController {
     
     private static final Logger logger = LoggerFactory.getLogger(CredentialController.class);
-    private static final String BERT_MODEL_URL = "http://localhost:8000/predict";
+    private static final String BERT_MODEL_URL = "http://localhost:8000/health";
+
+    @Value("${cookie.secure:false}")
+    private boolean cookieSecure;
     
     private final CredentialService credentialService;
     private final CredentialsRepo credentialsRepo;
@@ -93,7 +97,7 @@ public class CredentialController {
             // Set JWT in httpOnly cookie using proper Cookie API
             Cookie jwtCookie = new Cookie("jwt", token);
             jwtCookie.setHttpOnly(true);           // Prevent JavaScript access (XSS protection)
-            jwtCookie.setSecure(false);            // Set to true in production (HTTPS only)
+            jwtCookie.setSecure(cookieSecure);     // HTTPS only when true (set via COOKIE_SECURE env var)
             jwtCookie.setPath("/");                // Available across entire app
             jwtCookie.setMaxAge(30 * 60);          // 30 minutes
             jwtCookie.setAttribute("SameSite", "Strict");  // CSRF protection
@@ -159,7 +163,7 @@ public class CredentialController {
             // Clear JWT cookie by setting maxAge to 0
             Cookie jwtCookie = new Cookie("jwt", "");
             jwtCookie.setHttpOnly(true);
-            jwtCookie.setSecure(false);  // Set to true in production
+            jwtCookie.setSecure(cookieSecure);
             jwtCookie.setPath("/");
             jwtCookie.setMaxAge(0);  // Immediately expire the cookie
             jwtCookie.setAttribute("SameSite", "Strict");
@@ -250,12 +254,11 @@ public class CredentialController {
             factory.setReadTimeout(2000);     // 2 second read timeout
             restTemplate.setRequestFactory(factory);
             
-            Map<String, String> testRequest = new HashMap<>();
-            testRequest.put("text", "health");
+            // Map<String, String> testRequest = new HashMap<>();
+            // testRequest.put("text", "health");
             
-            ResponseEntity<?> response = restTemplate.postForEntity(
+            ResponseEntity<?> response = restTemplate.getForEntity(
                     BERT_MODEL_URL, 
-                    testRequest, 
                     String.class
             );
             

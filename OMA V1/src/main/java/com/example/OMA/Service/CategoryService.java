@@ -61,7 +61,7 @@ public class CategoryService {
      * - First request: 4 DB queries (all tables) → 100-150ms
      * - Requests 2+: 0 DB queries (from cache) → <1ms
      */
-    @Cacheable(value = "surveyStructure", unless = "#result == null")
+    @Cacheable(value = "surveyStructure", unless = "#result == null || #result.isEmpty()")
     public List<CategorySurveyDTO> getSurveyStructure() {
         long startTime = System.currentTimeMillis();
         logger.info("⚡ CACHE MISS: Fetching survey structure from DB (4 bulk queries)");

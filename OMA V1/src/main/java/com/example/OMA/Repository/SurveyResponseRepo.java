@@ -23,4 +23,16 @@ public interface SurveyResponseRepo extends JpaRepository<SurveyResponse, Long> 
      @Modifying
      @Query("DELETE FROM SurveyResponse r WHERE r.submission.sessionId = :sessionId")
      void deleteBySubmissionSessionId(String sessionId);
+
+    /**
+     * Atomically update the FK session_id on all response rows and nullify free_text.
+     * Part of the irreversible anonymization flow.
+     */
+    @Modifying
+    @Query(value = "UPDATE survey_response " +
+            "SET session_id = :newSessionId, " +
+            "    free_text = NULL " +
+            "WHERE session_id = :oldSessionId",
+            nativeQuery = true)
+    int anonymizeResponses(String oldSessionId, String newSessionId);
 }

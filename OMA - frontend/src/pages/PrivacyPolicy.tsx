@@ -36,7 +36,7 @@ export default function PrivacyPolicy() {
       {/* Content */}
       <main className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
         <h1 className="text-3xl font-semibold text-[#002D72]">Privacy Policy</h1>
-        <p className="text-sm text-gray-500">Last updated: [Date]</p>
+        <p className="text-sm text-gray-500">Last updated: March 9, 2026</p>
 
         <section className="bg-white rounded-2xl shadow-md px-8 py-8 space-y-8 text-[#4A4A4A] leading-relaxed">
           {/* 1 - Data Controller */}
@@ -103,7 +103,8 @@ export default function PrivacyPolicy() {
                 each session, with no link to the respondent&apos;s identity
               </li>
               <li>
-                <strong>Timestamps</strong> - session start time and submission time
+                <strong>Submission timestamp</strong> - the time at which the survey was
+                submitted
               </li>
               <li>
                 <strong>Consent acknowledgement</strong> - a record confirming that consent
@@ -246,22 +247,29 @@ export default function PrivacyPolicy() {
             <ul className="list-disc pl-6 space-y-1">
               <li>
                 Identifiable session data (i.e., data linked to a session UUID) is retained
-                only for the period required to complete reporting and analysis.
+                only for the period required to complete reporting and analysis, and in
+                any event no longer than <strong>90 days</strong> from submission. After
+                this period, data is automatically and irreversibly anonymised.
               </li>
               <li>
-                Where feasible, data may be irreversibly anonymised and retained in
-                aggregated form for benchmarking, research, and organisational development
+                Upon an erasure request, or upon expiry of the retention period, data is
+                irreversibly anonymised by permanently replacing the session identifier,
+                erasing all timestamps and consent records, and deleting free-text
+                responses. The remaining structured response data is retained in fully
+                anonymised form for benchmarking, research, and organisational development
                 purposes. Once anonymised, such data no longer constitutes personal data
                 under the GDPR.
               </li>
               <li>
-                Data is securely deleted or anonymised when it is no longer required for its
-                original purpose.
+                Your browser stores a session identifier in local storage and a cookie,
+                both of which automatically expire after 30 days. You may also clear
+                this data at any time by clearing your browser data.
               </li>
             </ul>
             <p>
-              We do not retain identifiable data indefinitely. Retention periods are
-              reviewed periodically and applied consistently.
+              We do not retain identifiable data indefinitely. All identifiable session
+              data is automatically anonymised after the retention period, or immediately
+              upon an erasure request.
             </p>
           </div>
 
@@ -282,6 +290,15 @@ export default function PrivacyPolicy() {
                 Agreement incorporating appropriate contractual safeguards. Data may be
                 stored in AWS data centres in the{" "}
                 <strong>{AWS_HOSTING_REGION}</strong> region.
+              </li>
+              <li>
+                <strong>NLP Processing Service (Internal)</strong> - Free-text survey responses are
+                transmitted to a BERT-based natural language processing service operated
+                by our internal team for automated analytical processing (as described
+                in Section 7). This service processes text data solely for
+                categorisation and scoring purposes. No personal identifiers are
+                transmitted alongside the text. As this service is operated internally,
+                no third-party data sharing occurs.
               </li>
               <li>
                 <strong>Client organisations</strong> - Aggregated and anonymised
@@ -338,8 +355,14 @@ export default function PrivacyPolicy() {
                 associated with your session ID.
               </li>
               <li>
-                <strong>Right to Erasure</strong> (Article 17) - Request the deletion of
-                data linked to your session ID.
+                <strong>Right to Erasure</strong> (Article 17) - Request the irreversible
+                anonymization of data linked to your session ID. Upon such request, your
+                session identifier is permanently replaced with a random anonymous value,
+                all timestamps and consent records are erased, and any free-text responses
+                are deleted. The remaining structured response data (multiple-choice
+                selections and rankings) is retained in fully anonymized form for
+                aggregated organisational analysis and can no longer be linked to any
+                session or individual.
               </li>
               <li>
                 <strong>Right to Data Portability</strong> (Article 20) - Receive your data
@@ -379,7 +402,10 @@ export default function PrivacyPolicy() {
             <p>
               Please note that where data has already been irreversibly anonymised and
               incorporated into aggregated datasets, it may no longer be possible to
-              identify or extract individual responses.
+              identify or extract individual responses. Specifically, after the 90-day
+              retention period, your session identifier is permanently replaced and your
+              data can no longer be located. Any request received after this period will
+              be responded to confirming that no identifiable data remains.
             </p>
           </div>
 
@@ -433,9 +459,10 @@ export default function PrivacyPolicy() {
             </p>
             <ul className="list-disc pl-6 space-y-1">
               <li>
-                <strong>Session cookie</strong> - A temporary cookie used solely to maintain
-                survey continuity during an active session. This cookie is deleted when the
-                browser session ends.
+                <strong>Session cookie</strong> - A cookie used solely to maintain
+                survey continuity during and across sessions. This cookie stores a
+                randomly generated anonymous session identifier and expires after 30
+                days or when manually cleared by the user.
               </li>
               <li>
                 <strong>Authentication cookie</strong> - An httpOnly cookie used exclusively

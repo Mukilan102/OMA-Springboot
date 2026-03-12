@@ -37,7 +37,7 @@ export default function TermsOfService() {
       {/* Content */}
       <main className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
         <h1 className="text-3xl font-semibold text-[#002D72]">Terms of Service</h1>
-        <p className="text-sm text-gray-500">Last updated: [Date]</p>
+        <p className="text-sm text-gray-500">Last updated: March 9, 2026</p>
 
         <section className="bg-white rounded-2xl shadow-md px-8 py-8 space-y-8 text-[#4A4A4A] leading-relaxed">
           {/* 1 - Acceptance */}

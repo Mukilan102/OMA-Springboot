@@ -164,8 +164,6 @@ public class SurveyController {
             body.put("found", true);
             body.put("submitted", false);
             body.put("responses", responses);
-            body.put("startedAt", submission.getStartedAt() != null
-                    ? submission.getStartedAt().toString() : null);
             return ResponseEntity.ok(body);
         } catch (Exception e) {
             log.error("session-responses failed", e);
@@ -209,26 +207,28 @@ public class SurveyController {
     }
 
     /**
-     * Delete all data linked to a session ID (GDPR right to erasure).
-     * Removes response rows but keeps a minimal audit stub.
+     * Irreversibly anonymize all data linked to a session ID (GDPR right to erasure).
+     * Replaces the session ID with a random anonymous value, nullifies timestamps,
+     * consent fields, and free-text responses. Structured response data is preserved
+     * in anonymized form for aggregated analysis.
      */
     @DeleteMapping("/session/{sessionId}/data")
     public ResponseEntity<Map<String, Object>> deleteSessionData(@PathVariable String sessionId) {
         try {
-            boolean deleted = surveyService.deleteSessionData(sessionId);
+            boolean anonymized = surveyService.anonymizeSessionData(sessionId);
             Map<String, Object> body = new HashMap<>();
-            if (!deleted) {
+            if (!anonymized) {
                 body.put("success", false);
                 body.put("message", "No data found for this session ID");
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
             }
             body.put("success", true);
-            body.put("message", "Session data deleted successfully");
+            body.put("message", "Session data has been irreversibly anonymized");
             return ResponseEntity.ok(body);
         } catch (Exception e) {
             Map<String, Object> err = new HashMap<>();
             err.put("success", false);
-            err.put("message", "Deletion failed");
+            err.put("message", "Anonymization failed");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
         }
     }

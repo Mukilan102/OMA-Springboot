@@ -24,9 +24,10 @@ import type { SurveyCategory, SurveyQuestion, SurveyQuestionType, ResponseValue 
 const LS_RESPONSES  = "oma_survey_responses";
 const LS_POSITION   = "oma_survey_position";
 const LS_SESSION_ID = "oma_session_id";
-const LS_STARTED_AT = "oma_survey_started_at";
+const LS_SESSION_CREATED = "oma_session_created_at";
 const LS_SUBMITTED  = "oma_survey_submitted";
 const LS_TOUR_DONE  = "oma_nav_tour_done";
+const SESSION_MAX_AGE_DAYS = 30;
 const FREE_TEXT_MAX_LENGTH = 5000; // hard cap on free-text before it reaches the DB
 
 // ── Cookie helpers ──
@@ -98,7 +99,29 @@ function sanitizeResponses(raw: unknown): Record<string, ResponseValue> {
   return result;
 }
 
+function isSessionExpired(): boolean {
+  const created = localStorage.getItem(LS_SESSION_CREATED);
+  if (!created) return true;
+  const age = Date.now() - Number(created);
+  return age > SESSION_MAX_AGE_DAYS * 86_400_000;
+}
+
+function clearExpiredSession() {
+  localStorage.removeItem(LS_SESSION_ID);
+  localStorage.removeItem(LS_SESSION_CREATED);
+  localStorage.removeItem(LS_RESPONSES);
+  localStorage.removeItem(LS_POSITION);
+  localStorage.removeItem(LS_SUBMITTED);
+  // Also clear the cookie
+  document.cookie = "oma_session_id=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;SameSite=Strict";
+}
+
 function getOrCreateSessionId(): string {
+  // Check if existing session has expired (30-day limit matching cookie)
+  if (localStorage.getItem(LS_SESSION_ID) && isSessionExpired()) {
+    clearExpiredSession();
+  }
+
   // Priority: localStorage → cookie → create new
   const fromLS = localStorage.getItem(LS_SESSION_ID);
   if (fromLS) {
@@ -107,11 +130,15 @@ function getOrCreateSessionId(): string {
   }
   const fromCookie = getCookie("oma_session_id");
   if (fromCookie) {
-    localStorage.setItem(LS_SESSION_ID, fromCookie); // restore to localStorage
+    localStorage.setItem(LS_SESSION_ID, fromCookie);
+    if (!localStorage.getItem(LS_SESSION_CREATED)) {
+      localStorage.setItem(LS_SESSION_CREATED, String(Date.now()));
+    }
     return fromCookie;
   }
   const id = generateSessionId();
   localStorage.setItem(LS_SESSION_ID, id);
+  localStorage.setItem(LS_SESSION_CREATED, String(Date.now()));
   setCookie("oma_session_id", id);
   return id;
 }
@@ -136,12 +163,12 @@ function loadSavedPosition(): { categoryIndex: number; questionIndex: number } |
 }
 
 function clearSurveyStorage() {
-  // Clear answer data and progress - but intentionally KEEP LS_SESSION_ID and the
-  // session cookie so the DB can still identify this browser on future visits and
-  // return submitted:true, blocking re-submission even if LS_SUBMITTED is cleared.
+  // Clear all survey data including the session ID on submission.
+  // The server already has the submission flagged, and keeping
+  // the session ID around is unnecessary after the 30-day expiry
+  // mechanism is in place.
   localStorage.removeItem(LS_RESPONSES);
   localStorage.removeItem(LS_POSITION);
-  localStorage.removeItem(LS_STARTED_AT);
   localStorage.removeItem(LS_SUBMITTED);
 }
 
@@ -282,10 +309,6 @@ export default function Survey() {
   // ── Fetch survey data & restore saved state ──
   useEffect(() => {
     // Record start time if first visit
-    if (!localStorage.getItem(LS_STARTED_AT)) {
-      localStorage.setItem(LS_STARTED_AT, new Date().toISOString());
-    }
-
     apiClient.fetch("/category/allquestion")
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load survey data");
@@ -318,9 +341,6 @@ export default function Survey() {
               // Seed the autosave snapshot so we don't re-POST data we just loaded
               seedSnapshot(clean);
               localStorage.setItem(LS_RESPONSES, JSON.stringify(clean));
-              if (dbData.startedAt) {
-                localStorage.setItem(LS_STARTED_AT, dbData.startedAt);
-              }
               restorePosition(data);
               setLoading(false);
               return;
@@ -416,7 +436,7 @@ export default function Survey() {
 
   // ── Thank-you screen after successful submit ──
   if (submitted) {
-    return <ThankYouScreen />;
+    return <ThankYouScreen sessionId={sessionId.current} />;
   }
 
   const currentCategory = surveyData[currentCategoryIndex];
@@ -464,7 +484,6 @@ export default function Survey() {
       const consentAt = sessionStorage.getItem("gdpr_consent_at") ?? undefined;
       const payload = {
         sessionId: sessionId.current,
-        startedAt: localStorage.getItem(LS_STARTED_AT),
         submittedAt: new Date().toISOString(),
         responses,
         consentGiven: !!consentAt,
@@ -936,7 +955,16 @@ export default function Survey() {
 }
 
 // ── Premium Thank-You Screen ──
-function ThankYouScreen() {
+function ThankYouScreen({ sessionId }: { sessionId: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(sessionId).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-[#f0f4ff] via-white to-[#e8f5f5]">
       {/* Animated background elements */}
@@ -1000,10 +1028,31 @@ function ThankYouScreen() {
               <p className="text-lg text-[#4A4A4A] leading-relaxed mb-2 max-w-md mx-auto">
                 Your assessment has been submitted successfully.
               </p>
-              <p className="mb-6 text-sm text-[#4A4A4A]/70 leading-relaxed max-w-sm mx-auto">
+              <p className="mb-4 text-sm text-[#4A4A4A]/70 leading-relaxed max-w-sm mx-auto">
                 We appreciate your valuable input. Your responses will help drive
                 meaningful organizational insights.
               </p>
+            </div>
+
+            {/* Session ID for GDPR rights */}
+            <div
+              className="mt-2 mb-4"
+              style={{ animation: "fadeSlideUp 0.6s ease-out 1s both" }}
+            >
+              <p className="text-xs text-[#4A4A4A]/60 mb-2">
+                Save your session ID to exercise your data rights:
+              </p>
+              <div className="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2">
+                <code className="text-sm font-mono text-[#002D72] select-all">
+                  {sessionId}
+                </code>
+                <button
+                  onClick={handleCopy}
+                  className="text-xs px-2 py-1 rounded bg-[#002D72]/10 hover:bg-[#002D72]/20 text-[#002D72] transition-colors"
+                >
+                  {copied ? "Copied!" : "Copy"}
+                </button>
+              </div>
             </div>
 
           </div>
