@@ -13,6 +13,9 @@ public class FreetextCache {
     @Column(name = "cache_id")
     private Long cacheId;
 
+    @Column(name = "session_id", nullable = false)
+    private String sessionId;
+
     @Column(name = "main_question_id", nullable = false)
     private Integer mainQuestionId;
 
@@ -33,7 +36,8 @@ public class FreetextCache {
 
     public FreetextCache() {}
 
-    public FreetextCache(Integer mainQuestionId, Integer categoryId, String freeText) {
+    public FreetextCache(String sessionId, Integer mainQuestionId, Integer categoryId, String freeText) {
+        this.sessionId = sessionId;
         this.mainQuestionId = mainQuestionId;
         this.categoryId = categoryId;
         this.freeText = freeText;
@@ -59,6 +63,9 @@ public class FreetextCache {
 
     public Long getCacheId() { return cacheId; }
     public void setCacheId(Long cacheId) { this.cacheId = cacheId; }
+
+    public String getSessionId() { return sessionId; }
+    public void setSessionId(String sessionId) { this.sessionId = sessionId; }
 
     public Integer getMainQuestionId() { return mainQuestionId; }
     public void setMainQuestionId(Integer mainQuestionId) { this.mainQuestionId = mainQuestionId; }

@@ -160,7 +160,7 @@ public class SurveyService {
                 // Extract free text responses and add to cache with null score
                 for (SurveyResponse row : questionRows) {
                     if (row.getFreeText() != null) {
-                        FreetextCache cache = new FreetextCache(mainQId, row.getCategoryId(), row.getFreeText());
+                        FreetextCache cache = new FreetextCache(dto.getSessionId(), mainQId, row.getCategoryId(), row.getFreeText());
                         cacheRows.add(cache);
                     }
                 }

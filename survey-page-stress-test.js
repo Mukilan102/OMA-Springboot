@@ -10,31 +10,40 @@ const submitTime = new Trend('submit_time');
 
 // ===== Real World Test Configuration =====
 export const options = {
+
   scenarios: {
 
-    real_user_survey: {
+    survey_5000_users: {
+
       executor: 'ramping-arrival-rate',
 
-      startRate: 10,         // 10 users per second initially
+      startRate: 10,
       timeUnit: '1s',
 
-      preAllocatedVUs: 200,
-      maxVUs: 1000,
+      preAllocatedVUs: 500,
+      maxVUs: 5000,
 
       stages: [
-        { target: 50, duration: '20s' },   // ramp to 50 users/sec
-        { target: 80, duration: '20s' },   // ramp to 80 users/sec
-        { target: 100, duration: '20s' },  // peak load
-        { target: 0, duration: '10s' }     // cool down
-      ]
+
+        { target: 20, duration: '30s' },   // 20 users/sec
+        { target: 50, duration: '30s' },   // 50 users/sec
+        { target: 80, duration: '30s' },   // 80 users/sec
+        { target: 100, duration: '30s' }   // peak load
+
+      ],
+
+      gracefulStop: '10s'
     }
 
   },
 
   thresholds: {
-    http_req_failed: ['rate<0.05'],   // <5% failure
-    http_req_duration: ['p(95)<2000'],
+
+    http_req_failed: ['rate<0.05'],
+    http_req_duration: ['p(95)<2000']
+
   }
+
 };
 
 // ===== Helper Functions =====
