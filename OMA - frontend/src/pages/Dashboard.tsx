@@ -427,7 +427,7 @@ export default function Dashboard() {
                     Your organization's maturity across key categories
                   </p>
                 </div>
-                <div className="flex-1 min-h-[300px] sm:min-h-[350px]">
+                <div className="flex-1 min-h-[350px] sm:min-h-[400px]">
                   {loading ? (
                     <div className="flex items-center justify-center h-full">
                       <div className="text-center">
@@ -451,13 +451,13 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart data={radarData} margin={{ top: 80, right: 60, bottom: 40, left: 60 }}>
+                      <RadarChart data={radarData} margin={{ top: 80, right: 80, bottom: 80, left: 80 }}>
                         <PolarGrid stroke="#E5E7EB" />
                         <PolarAngleAxis
                           dataKey="category"
-                          tick={{ fill: "#4A4A4A", fontSize: 10, offset: 8 }}
+                          tick={{ fill: "#4A4A4A", fontSize: 12, offset: 200 }}
                         />
-                        <PolarRadiusAxis angle={90} domain={[0, 5]} tick={false} />
+                        <PolarRadiusAxis angle={90} domain={[0, 5]} tick={{ fill: "#4A4A4A", fontSize: 10 }} />
                         <Tooltip
                           content={<CustomRadarTooltip />}
                           cursor={false}
@@ -465,7 +465,7 @@ export default function Dashboard() {
                           wrapperStyle={{ outline: "none" }}
                         />
                         <Radar
-                          name="Your Organization"
+                          name="Evora Organization"
                           dataKey="yourScore"
                           stroke="#002D72"
                           fill="#002D72"
