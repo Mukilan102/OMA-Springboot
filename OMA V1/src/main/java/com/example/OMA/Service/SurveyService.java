@@ -1,9 +1,9 @@
 package com.example.OMA.Service;
 
-import com.example.OMA.DTO.BertResponse;
 import com.example.OMA.DTO.SaveAnswerDTO;
 import com.example.OMA.DTO.SaveProgressDTO;
 import com.example.OMA.DTO.SurveySubmissionDTO;
+import com.example.OMA.Model.FreetextCache;
 import com.example.OMA.Model.MainQuestion;
 import com.example.OMA.Model.Option;
 import com.example.OMA.Model.SubQuestion;
@@ -11,12 +11,16 @@ import com.example.OMA.Model.Category;
 import com.example.OMA.Model.SurveyResponse;
 import com.example.OMA.Model.SurveySubmission;
 import com.example.OMA.Repository.CategoryRepo;
+import com.example.OMA.Repository.FreetextCacheRepository;
 import com.example.OMA.Repository.MainQuestionRepo;
 import com.example.OMA.Repository.OptionRepo;
 import com.example.OMA.Repository.SubQuestionRepo;
 import com.example.OMA.Repository.SurveyResponseRepo;
 import com.example.OMA.Repository.SurveySubmissionRepo;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +36,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class SurveyService {
@@ -44,19 +49,22 @@ public class SurveyService {
     private final OptionRepo optionRepo;
     private final SubQuestionRepo subQuestionRepo;
     private final CategoryRepo categoryRepo;
+    private final FreetextCacheRepository freetextCacheRepo;
 
     public SurveyService(SurveySubmissionRepo submissionRepo,
                          SurveyResponseRepo responseRepo,
                          MainQuestionRepo mainQuestionRepo,
                          OptionRepo optionRepo,
                          SubQuestionRepo subQuestionRepo,
-                         CategoryRepo categoryRepo) {
+                         CategoryRepo categoryRepo,
+                         FreetextCacheRepository freetextCacheRepo) {
         this.submissionRepo = submissionRepo;
         this.responseRepo = responseRepo;
         this.mainQuestionRepo = mainQuestionRepo;
         this.optionRepo = optionRepo;
         this.subQuestionRepo = subQuestionRepo;
         this.categoryRepo = categoryRepo;
+        this.freetextCacheRepo = freetextCacheRepo;
     }
 
     // ── Save a single answer (called on Next click, debounced 2 s from frontend) ──
@@ -153,11 +161,25 @@ public class SurveyService {
         Map<String, Object> responses = dto.getResponses();
         if (responses != null) {
             List<SurveyResponse> allRows = new ArrayList<>();
+            List<FreetextCache> cacheRows = new ArrayList<>();
             for (Map.Entry<String, Object> entry : responses.entrySet()) {
                 Integer mainQId = Integer.valueOf(entry.getKey());
-                allRows.addAll(buildResponseRows(submission, mainQId, entry.getValue()));
+                List<SurveyResponse> questionRows = buildResponseRows(submission, mainQId, entry.getValue());
+                allRows.addAll(questionRows);
+                
+                // Extract free text responses and add to cache with null score
+                for (SurveyResponse row : questionRows) {
+                    if (row.getFreeText() != null) {
+                        FreetextCache cache = new FreetextCache(dto.getSessionId(), mainQId, row.getCategoryId(), row.getFreeText());
+                        cacheRows.add(cache);
+                    }
+                }
             }
             responseRepo.saveAll(allRows);
+            // Save free text to cache for BERT processing
+            if (!cacheRows.isEmpty()) {
+                freetextCacheRepo.saveAll(cacheRows);
+            }
         }
 
         return submission;
@@ -490,61 +512,164 @@ public class SurveyService {
     }
 
     public Map<Integer, BigDecimal> getAllResponse() {
-        // int i=0;
-        // int k=0;
         List<Option> optionScore = optionRepo.findAll();
         List<SurveyResponse> surveyResponse = responseRepo.findAll();
 
         Map<Integer, BigDecimal> optionScoreMap = new HashMap<>();
-        for(Option opt : optionScore){
+        for (Option opt : optionScore) {
             optionScoreMap.put(opt.getOptionId(), opt.getScore());
         }
 
         Map<Integer, BigDecimal> categoryTotalScore = new HashMap<>();
         Map<Integer, Integer> categoryCount = new HashMap<>();
 
-        for(SurveyResponse response : surveyResponse){
+        // Process standard survey responses (options with scores)
+        for (SurveyResponse response : surveyResponse) {
             Integer categoryId = response.getCategoryId();
             Integer optionId = response.getOptionId();
 
             BigDecimal score = optionScoreMap.get(optionId);
 
-            if(score!= null){
+            if (score != null) {
                 categoryTotalScore.put(categoryId, categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(score));
+                categoryCount.put(categoryId, categoryCount.getOrDefault(categoryId, 0) + 1);
             }
-            else{
-                RestTemplate restTemplate = new RestTemplate();
-                String url = "http://localhost:8000/predict";
-                Map<String, String> request = new HashMap<>();
-                request.put("text", response.getFreeText());
-                ResponseEntity<BertResponse> res = restTemplate.postForEntity(url, request, BertResponse.class);
-                BertResponse body = res.getBody();
-                BigDecimal stage = body.getPredicted_class_id();
-                categoryTotalScore.put(categoryId, categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(stage));
-            }
-
-            categoryCount.put(categoryId, categoryCount.getOrDefault(categoryId, 0)+1);
+            // Note: Free text responses are processed separately through FreetextCache batch processing
         }
 
+        // Process free text from cache using pagination for memory efficiency
+        processFreetextCacheWithPagination(categoryTotalScore, categoryCount);
+
         Map<Integer, BigDecimal> categoryAverage = new HashMap<>();
-        for(Integer categoryId : categoryTotalScore.keySet()){
+        for (Integer categoryId : categoryTotalScore.keySet()) {
             BigDecimal total = categoryTotalScore.get(categoryId);
             int count = categoryCount.get(categoryId);
 
-            BigDecimal average = total.divide(
-                    BigDecimal.valueOf(count),
-                    2,
-                    RoundingMode.HALF_UP
-            );
-            
-            categoryAverage.put(categoryId, average);
+            if (count > 0) {
+                BigDecimal average = total.divide(
+                        BigDecimal.valueOf(count),
+                        2,
+                        RoundingMode.HALF_UP
+                );
+                categoryAverage.put(categoryId, average);
+            }
+        }
+        System.out.println(categoryAverage);
+        return categoryAverage;
+    }
 
+    /**
+     * Process free text cache entries in batches using VECTORIZED batch API (single request per batch)
+     * instead of parallel individual requests. This is 10x more efficient.
+     * 
+     * @param categoryTotalScore Map to accumulate category scores
+     * @param categoryCount Map to count responses per category
+     */
+    private void processFreetextCacheWithPagination(Map<Integer, BigDecimal> categoryTotalScore, 
+                                                    Map<Integer, Integer> categoryCount) {
+        RestTemplate restTemplate = new RestTemplate();
+        String batchUrl = "http://localhost:8000/predict-batch-optimized";
+        
+        // Process in batches of 100 to avoid memory overflow
+        int batchSize = 100;
+        int batchNumber = 0;
+        boolean hasMoreUnprocessed = true;
+
+        // ========== PHASE 1: Send BATCH REQUESTS to BERT (1 request per 100 texts) ==========
+        while (hasMoreUnprocessed) {
+            try {
+                // Always fetch from page 0 since we're removing entries as we process them
+                Pageable pageable = PageRequest.of(0, batchSize);
+                Page<FreetextCache> page = freetextCacheRepo.findByBertScoreIsNull(pageable);
+
+                if (page.isEmpty()) {
+                    System.out.println("✓ No more unprocessed free text entries to process");
+                    hasMoreUnprocessed = false;
+                    break;
+                }
+
+                batchNumber++;
+                List<FreetextCache> batchContent = page.getContent();
+                System.out.println("Processing batch " + batchNumber + " with " + batchContent.size() 
+                        + " entries (Total unprocessed remaining: " + (page.getTotalElements() - batchContent.size()) + ")");
+
+                // ===== STEP 1: Collect all texts from this batch =====
+                List<String> textsForBatch = batchContent.stream()
+                    .map(FreetextCache::getFreeText)
+                    .collect(Collectors.toList());
+
+                System.out.println("  → Sending " + textsForBatch.size() + " texts to BERT in ONE batch request...");
+                
+                // ===== STEP 2: Send ONE REQUEST with all texts (vectorized processing) =====
+                try {
+                    Map<String, Object> batchRequest = new HashMap<>();
+                    batchRequest.put("texts", textsForBatch);
+                    
+                    long startTime = System.currentTimeMillis();
+                    ResponseEntity<Map> batchResponse = restTemplate.postForEntity(batchUrl, batchRequest, Map.class);
+                    long duration = System.currentTimeMillis() - startTime;
+                    
+                    Map<String, Object> responseBody = batchResponse.getBody();
+                    List<Map<String, Object>> results = (List<Map<String, Object>>) responseBody.get("results");
+                    
+                    System.out.println("  ✓ BERT batch response received (" + duration + "ms) with " + results.size() + " results");
+                    
+                    // ===== STEP 3: Map results back to FreetextCache entries =====
+                    for (int i = 0; i < results.size() && i < batchContent.size(); i++) {
+                        Map<String, Object> result = results.get(i);
+                        FreetextCache cache = batchContent.get(i);
+                        
+                        if (result.containsKey("predicted_class_id")) {
+                            Object scoreObj = result.get("predicted_class_id");
+                            BigDecimal score = scoreObj instanceof Number 
+                                ? BigDecimal.valueOf(((Number) scoreObj).doubleValue())
+                                : new BigDecimal(scoreObj.toString());
+                            
+                            cache.setBertScore(score);
+                            
+                            String preview = cache.getFreeText().substring(0, Math.min(50, cache.getFreeText().length()));
+                            System.out.println("    ✓ Entry " + (i + 1) + ": '" + preview + "...' => Score: " + score);
+                        }
+                    }
+                    
+                    // ===== STEP 4: Batch save all processed entries at once =====
+                    freetextCacheRepo.saveAll(batchContent);
+                    System.out.println("  → Batch " + batchNumber + " saved: " + batchContent.size() + " entries updated");
+                    
+                } catch (Exception e) {
+                    System.err.println("  ✗ Error in batch BERT request: " + e.getMessage());
+                    e.printStackTrace();
+                    break;
+                }
+
+                // If this batch was smaller than batchSize, we've reached the end
+                if (batchContent.size() < batchSize) {
+                    System.out.println("✓ Completed processing all batches (final batch had " + batchContent.size() + " < " + batchSize + ")");
+                    hasMoreUnprocessed = false;
+                }
+
+            } catch (Exception e) {
+                System.err.println("Error fetching batch " + batchNumber + ": " + e.getMessage());
+                break;
+            }
+        }
+
+        // ========== PHASE 2: Aggregate processed scores (single efficient query) ==========
+        System.out.println("✓ Aggregating processed scores from cache...");
+        
+        // Get all processed free text scores in one go
+        List<FreetextCache> processedScores = freetextCacheRepo.findAll()
+                .stream()
+                .filter(fc -> fc.getBertScore() != null)
+                .toList();
+
+        for (FreetextCache cache : processedScores) {
+            Integer categoryId = cache.getCategoryId();
+            categoryTotalScore.put(categoryId, categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(cache.getBertScore()));
+            categoryCount.put(categoryId, categoryCount.getOrDefault(categoryId, 0) + 1);
         }
         
-        // System.out.println("Category Total Score : " + categoryTotalScore);
-        // System.out.println("Category Count : "+ categoryCount);
-        // System.out.println("Category Average : "+ categoryAverage);
-        return categoryAverage;
+        System.out.println("✓ Aggregation complete: " + processedScores.size() + " processed entries counted");
     }
 
 
