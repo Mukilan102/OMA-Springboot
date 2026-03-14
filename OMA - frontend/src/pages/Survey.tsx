@@ -605,9 +605,9 @@ export default function Survey() {
   const getQuestionTypeLabel = (type: SurveyQuestionType) => {
     switch (type) {
       case "single ans":
-        return "Choose one";
+        return "Single-select";
       case "multi ans":
-        return "Select all that apply";
+        return "Multi-select";
       case "free text":
         return "Open response";
       case "rank":
@@ -825,7 +825,7 @@ export default function Survey() {
             <AlertDialogDescription className="text-[#4A4A4A] leading-relaxed">
               You haven't changed the ranking order. The items will be submitted in the default order shown.
               <br /><br />
-              If this reflects your priorities, click <strong>Proceed</strong>. Otherwise click <strong>Go Back</strong> to rearrange.
+              If this order reflects your priorities, click <strong>Proceed</strong>. Otherwise click <strong>Go Back</strong> to rearrange.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-2">

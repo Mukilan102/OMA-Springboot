@@ -301,6 +301,21 @@ export default function Dashboard() {
     return null;
   };
 
+  const score = 51;
+  const getColor = (value: number) => {
+    if(value >=-100 && value<=0) return "text-[#ef4444]";
+    if(value >=1 && value<=30) return "text-[#fde047]";
+    if(value >=31 && value<=50) return "text-[#86efac]";
+    if(value >=51 && value<=100) return "text-[#22c55e]";
+  };
+
+  const getColorStroke = (value: number) => {
+    if(value >=-100 && value<=0) return "#ef4444";
+    if(value >=1 && value<=30) return "#fde047";
+    if(value >=31 && value<=50) return "#86efac";
+    if(value >=51 && value<=100) return "#22c55e";
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-[#F5F7FA]">
       {/* Redirect Loading Screen */}
@@ -427,7 +442,7 @@ export default function Dashboard() {
                     Your organization's maturity across key categories
                   </p>
                 </div>
-                <div className="flex-1 min-h-[300px] sm:min-h-[350px]">
+                <div className="flex-1 min-h-[350px] sm:min-h-[400px]">
                   {loading ? (
                     <div className="flex items-center justify-center h-full">
                       <div className="text-center">
@@ -451,13 +466,13 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart data={radarData} margin={{ top: 80, right: 60, bottom: 40, left: 60 }}>
+                      <RadarChart data={radarData} margin={{ top: 80, right: 80, bottom: 80, left: 80 }}>
                         <PolarGrid stroke="#E5E7EB" />
                         <PolarAngleAxis
                           dataKey="category"
-                          tick={{ fill: "#4A4A4A", fontSize: 10, offset: 8 }}
+                          tick={{ fill: "#4A4A4A", fontSize: 12, offset: 200 }}
                         />
-                        <PolarRadiusAxis angle={90} domain={[0, 5]} tick={false} />
+                        <PolarRadiusAxis angle={90} domain={[0, 5]} tick={{ fill: "#4A4A4A", fontSize: 10 }} />
                         <Tooltip
                           content={<CustomRadarTooltip />}
                           cursor={false}
@@ -465,7 +480,7 @@ export default function Dashboard() {
                           wrapperStyle={{ outline: "none" }}
                         />
                         <Radar
-                          name="Your Organization"
+                          name="Evora Organization"
                           dataKey="yourScore"
                           stroke="#002D72"
                           fill="#002D72"
@@ -509,76 +524,67 @@ export default function Dashboard() {
                 <div className="relative w-20 h-20 sm:w-26 sm:h-26 mb-3">
                   <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
                     {/* Background circle */}
-                    <circle cx="50" cy="50" r="40" fill="none" stroke="#f0f0f0" strokeWidth="12" />
-                    {/* Promoters segment (green) - 54% = 194.4 degrees */}
+                    {/* <circle cx="50" cy="50" r="40" fill="#f0f0f0" stroke={getColorStroke(score)} strokeWidth="12" /> */}
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="#f0f0f0" strokeWidth="12" /> 
                     <circle 
                       cx="50" cy="50" r="40" 
                       fill="none" 
-                      stroke="#22c55e" 
-                      strokeWidth="7"
-                      strokeDasharray="135.7 251.3"
-                      strokeDashoffset="0"
-                      strokeLinecap="round"
-                    />
-                    {/* Detractors segment (red) - 27% */}
-                    <circle 
-                      cx="50" cy="50" r="40" 
-                      fill="none" 
-                      stroke="#ef4444" 
-                      strokeWidth="7"
-                      strokeDasharray="67.9 251.3"
-                      strokeDashoffset="-135.7"
-                      strokeLinecap="round"
-                    />
-                    {/* Passives segment (yellow) - 19% */}
-                    <circle 
-                      cx="50" cy="50" r="40" 
-                      fill="none" 
-                      stroke="#fbbf24" 
-                      strokeWidth="7"
-                      strokeDasharray="47.7 251.3"
-                      strokeDashoffset="-203.6"
+                      stroke={getColorStroke(score) }
+                      strokeWidth="6"
                       strokeLinecap="round"
                     />
                   </svg>
                   {/* Center content */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-2xl sm:text-3xl lg:text-4xl font-light text-[#4A4A4A]">50</span>
+                    <span className={`text-2xl sm:text-3xl lg:text-4xl font-semiBold ${getColor(score)}`}>
+                      {score}
+                    </span>
                   </div>
                 </div>
                 {/* Legend */}
                 <div className="w-full space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-[#22c55e]" />
-                      <span className="text-sm text-[#4A4A4A]">Promoters</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-[#4A4A4A]">
-                      <span className="font-medium">27</span>
-                      <span className="text-[#8c9e99]">|</span>
-                      <span>54%</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mx-30">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-[#ef4444]" />
-                      <span className="text-sm text-[#4A4A4A]">Detractors</span>
+                      <span className="text-sm text-[#4A4A4A]">Poor</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-[#4A4A4A]">
-                      <span className="font-medium">14</span>
-                      <span className="text-[#8c9e99]">|</span>
-                      <span>27%</span>
+                      <span className="font-medium">-100</span>
+                      <span className="font-medium">—</span>
+                      <span className="font-medium">00</span>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mx-30">
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-[#fbbf24]" />
-                      <span className="text-sm text-[#4A4A4A]">Passives</span>
+                      <div className="w-3 h-3 rounded-full bg-[#fde047]" />
+                      <span className="text-sm text-[#4A4A4A]">Good</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-[#4A4A4A]">
-                      <span className="font-medium">9</span>
-                      <span className="text-[#8c9e99]">|</span>
-                      <span>19%</span>
+                      <span className="font-medium">01</span>
+                      <span className="font-medium">—</span>
+                      <span className="font-medium">30</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mx-30">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-[#86efac]" />
+                      <span className="text-sm text-[#4A4A4A]">Very Good</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-[#4A4A4A]">
+                      <span className="font-medium">31</span>
+                      <span className="font-medium">—</span>
+                      <span className="font-medium">50</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mx-30">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-[#22c55e]" />
+                      <span className="text-sm text-[#4A4A4A]">Excellent</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-[#4A4A4A]">
+                      <span className="font-medium">51</span>
+                      <span className="font-medium">—</span>
+                      <span className="font-medium">100</span>
                     </div>
                   </div>
                 </div>

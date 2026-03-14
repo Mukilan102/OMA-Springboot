@@ -4,48 +4,84 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Cell } from "recha
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card"
 
 const happinessData = [
-    { score: "1\nVery Unhappy", label: "1 - Very Unhappy", count: 5, color: "#ef4444" },
-    { score: "2\nUnhappy", label: "2 - Unhappy", count: 12, color: "#fb923c" },
-    { score: "3\nNeutral", label: "3 - Neutral", count: 25, color: "#fde047" },
-    { score: "4\nHappy", label: "4 - Happy", count: 45, color: "#86efac" },
-    { score: "5\nVery Happy", label: "5 - Very Happy", count: 30, color: "#22c55e" },
+    { score: "\nExhausting", label: "Exhausting", count: 5, color: "#ef4444" },
+    { score: "\nLow on energy", label: "Low on energy", count: 12, color: "#fb923c" },
+    { score: "\nNeutral", label: "Neutral", count: 25, color: "#fde047" },
+    { score: "\nHappy", label: "Happy", count: 45, color: "#86efac" },
+    { score: "\nHighly Positive", label: "Highly Positive", count: 30, color: "#22c55e" },
 ]
+
+// Calculate total and add percentage to each item
+const totalCount = happinessData.reduce((sum, item) => sum + item.count, 0)
+const dataWithPercentage = happinessData.map(item => ({
+    ...item,
+    percentage: ((item.count / totalCount) * 100).toFixed(1)
+}))
+
+const CustomBarLabel = (props: any) => {
+    const { x, y, width, height, value, index } = props
+    const percentage = dataWithPercentage[index]?.percentage || '0'
+    
+    return (
+        <g>
+            <text 
+                x={x + width / 2} 
+                y={y - 18} 
+                fill="#4A4A4A" 
+                textAnchor="middle" 
+                fontSize={13}
+                fontWeight="bold"
+            >
+                {value}
+            </text>
+            <text 
+                x={x + width / 2} 
+                y={y - 5} 
+                fill="#717171" 
+                textAnchor="middle" 
+                fontSize={11}
+            >
+                ({percentage}%)
+            </text>
+        </g>
+    )
+}
 
 export function HappinessChart() {
     return (
-        <Card className="flex flex-col h-full shadow-md border border-gray-200 bg-white/50 backdrop-blur-sm">
+        <Card className="flex flex-col h-full shadow-md bg-white gradient-border-hover">
             <CardHeader className="items-center pb-2">
-                <CardTitle>Employee Happiness Index</CardTitle>
-                <CardDescription>Sentiment distribution across the organization (1-5 Scale)</CardDescription>
+                <CardTitle className="text-xl lg:text-2xl font-medium text-[#002D72]">Employee Happiness Index</CardTitle>
+                <CardDescription>Sentiment distribution across the organization</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 pb-2">
-                <div className="h-[300px] w-full flex justify-center">
+            <CardContent className="flex-1 pb-2 flex items-center justify-center w-full">
+                <div className="h-[300px] w-full flex justify-center items-center">
                     <BarChart
-                        width={500}
-                        height={300}
-                        data={happinessData}
+                        width={600}
+                        height={400}
+                        data={dataWithPercentage}
                         margin={{
-                            left: 20,
-                            right: 20,
-                            top: 20,
-                            bottom: 20,
+                            left: 10,
+                            right: 50,
+                            top: 40,
+                            bottom: 80,
                         }}
                     >
-                        <CartesianGrid strokeDasharray="3 3" vertical={true} horizontal={false} stroke="#E5E7EB" />
                         <XAxis
                             dataKey="score"
                             tickLine={false}
                             axisLine={false}
-                            tick={{ fill: "#4B5563", fontSize: 13 }}
+                            tick={{ fill: "#4B5563", fontSize: 13
+                             }}
                         />
-                        <YAxis type="number" stroke="#E5E7EB" tick={{ fill: "#4A4A4A", fontSize: 12 }} />
-                        <Tooltip
-                            cursor={{ fill: "transparent" }}
-                            contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
-                            formatter={(value) => [`${value} employees`, 'Count']}
-                        />
-                        <Bar dataKey="count" radius={[4, 4, 0, 0]} barSize={40} label={{ position: 'top', fill: '#4A4A4A', fontSize: 12 }}>
-                            {happinessData.map((entry, index) => (
+                        <YAxis type="number" stroke="#E5E7EB" tick={{ fill: "#4A4A4A", fontSize: 15 }} />
+                        <Bar 
+                            dataKey="count" 
+                            radius={[4, 4, 0, 0]} 
+                            barSize={47} 
+                            label={<CustomBarLabel />}
+                        >
+                            {dataWithPercentage.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={entry.color} />
                             ))}
                         </Bar>

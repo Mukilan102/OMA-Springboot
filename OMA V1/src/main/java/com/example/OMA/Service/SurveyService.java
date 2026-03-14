@@ -1,5 +1,5 @@
 package com.example.OMA.Service;
-
+ 
 import com.example.OMA.DTO.SaveAnswerDTO;
 import com.example.OMA.DTO.SaveProgressDTO;
 import com.example.OMA.DTO.SurveySubmissionDTO;
@@ -17,7 +17,7 @@ import com.example.OMA.Repository.OptionRepo;
 import com.example.OMA.Repository.SubQuestionRepo;
 import com.example.OMA.Repository.SurveyResponseRepo;
 import com.example.OMA.Repository.SurveySubmissionRepo;
-
+ 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -27,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+ 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -37,12 +37,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
+ 
 @Service
 public class SurveyService {
-
+ 
     private static final Logger log = LoggerFactory.getLogger(SurveyService.class);
-
+ 
     private final SurveySubmissionRepo submissionRepo;
     private final SurveyResponseRepo responseRepo;
     private final MainQuestionRepo mainQuestionRepo;
@@ -50,7 +50,7 @@ public class SurveyService {
     private final SubQuestionRepo subQuestionRepo;
     private final CategoryRepo categoryRepo;
     private final FreetextCacheRepository freetextCacheRepo;
-
+ 
     public SurveyService(SurveySubmissionRepo submissionRepo,
                          SurveyResponseRepo responseRepo,
                          MainQuestionRepo mainQuestionRepo,
@@ -66,7 +66,7 @@ public class SurveyService {
         this.categoryRepo = categoryRepo;
         this.freetextCacheRepo = freetextCacheRepo;
     }
-
+ 
     // ── Save a single answer (called on Next click, debounced 2 s from frontend) ──
     @Transactional
     public void saveAnswer(SaveAnswerDTO dto) {
@@ -76,16 +76,16 @@ public class SurveyService {
             submission = new SurveySubmission(dto.getSessionId(), null);
             submissionRepo.saveAndFlush(submission);
         }
-
+ 
         // Delete old answer rows for this question (in case user changed answer)
         responseRepo.deleteBySessionIdAndMainQuestionId(dto.getSessionId(), dto.getMainQuestionId());
         responseRepo.flush();
-
+ 
         // Insert new answer row(s) - save each response explicitly
         List<SurveyResponse> rows = buildResponseRows(submission, dto.getMainQuestionId(), dto.getAnswer());
         responseRepo.saveAll(rows);
     }
-
+ 
     /**
      * Bulk save-progress: replaces ALL stored responses for a session with the
      * full responses map from the frontend.
@@ -108,14 +108,14 @@ public class SurveyService {
                 submissionRepo.saveAndFlush(submission);
             }
         }
-
+ 
         // If already submitted, reject silently (don't overwrite final data)
         if (submission.getSubmittedAt() != null) return;
-
+ 
         // Wipe all existing response rows for this session
         responseRepo.deleteBySubmissionSessionId(dto.getSessionId());
         responseRepo.flush();
-
+ 
         // Re-insert all responses from the full map
         Map<String, Object> responses = dto.getResponses();
         if (responses != null && !responses.isEmpty()) {
@@ -127,7 +127,7 @@ public class SurveyService {
             responseRepo.saveAll(allRows);
         }
     }
-
+ 
     /**
      * Persist the final survey submission.
      * Deletes any existing draft rows and re-inserts all answers,
@@ -135,11 +135,11 @@ public class SurveyService {
      */
     @Transactional
     public SurveySubmission submitSurvey(SurveySubmissionDTO dto) {
-
+ 
         Instant submittedAt = dto.getSubmittedAt() != null
                 ? parseInstant(dto.getSubmittedAt())
                 : Instant.now();
-
+ 
         // Reuse existing submission row if one was created by save-answer calls
         SurveySubmission submission = submissionRepo.findById(dto.getSessionId()).orElse(null);
         if (submission != null) {
@@ -153,10 +153,10 @@ public class SurveyService {
             submission = new SurveySubmission(dto.getSessionId(), submittedAt);
             applyConsent(submission, dto.getConsentGiven(), dto.getConsentAt());
         }
-
+ 
         // Persist/update the submission row first
         submission = submissionRepo.saveAndFlush(submission);
-
+ 
         // Fan-out all responses into relational rows and save explicitly
         Map<String, Object> responses = dto.getResponses();
         if (responses != null) {
@@ -181,10 +181,10 @@ public class SurveyService {
                 freetextCacheRepo.saveAll(cacheRows);
             }
         }
-
+ 
         return submission;
     }
-
+ 
     // ── Consent helper ──
     private void applyConsent(SurveySubmission submission, Boolean consentGiven, String consentAt) {
         if (consentGiven != null && consentGiven) {
@@ -196,7 +196,7 @@ public class SurveyService {
             }
         }
     }
-
+ 
     /**
      * Parse an ISO-8601 timestamp string to an Instant (UTC).
      * Handles formats with 'Z', offsets ('+05:30'), or bare local datetimes
@@ -213,7 +213,7 @@ public class SurveyService {
             return Instant.parse(iso + "Z");
         }
     }
-
+ 
     // ── GDPR data export ──
     /**
      * Export all data linked to a session ID in a portable format.
@@ -222,7 +222,7 @@ public class SurveyService {
     public Map<String, Object> exportSessionData(String sessionId) {
         SurveySubmission sub = submissionRepo.findById(sessionId).orElse(null);
         if (sub == null) return null;
-
+ 
         Map<String, Object> data = new java.util.LinkedHashMap<>();
         data.put("sessionId", sub.getSessionId());
         data.put("submittedAt", sub.getSubmittedAt() != null ? sub.getSubmittedAt().toString() : null);
@@ -356,7 +356,7 @@ public class SurveyService {
     public boolean anonymizeSessionData(String sessionId) {
         SurveySubmission sub = submissionRepo.findById(sessionId).orElse(null);
         if (sub == null) return false;
-
+ 
         // Generate a random anonymous replacement ID that cannot be reversed
         // Prefix is REDACTED- (distinct from normal session prefix anon-)
         String anonymousId = "REDACTED-" + java.util.UUID.randomUUID().toString();
@@ -368,21 +368,21 @@ public class SurveyService {
         // Update PK + nullify fields in survey_submission
         // ON UPDATE CASCADE on the FK automatically updates survey_response.session_id
         submissionRepo.anonymizeSubmission(sessionId, anonymousId);
-
+ 
         // Audit log: record that anonymization occurred without logging the original session ID
         log.info("GDPR erasure completed: session replaced with {}", anonymousId);
 
         return true;
     }
-
+ 
     public List<SurveySubmission> getAllSubmissions() {
         return submissionRepo.findAllByOrderBySubmittedAtDesc();
     }
-
+ 
     public SurveySubmission getSubmissionBySessionId(String sessionId) {
         return submissionRepo.findById(sessionId).orElse(null);
     }
-
+ 
     /**
      * Reconstruct the frontend-style responses map from DB rows for session recovery.
      * Returns a map of mainQuestionId → answer value (same format the frontend stores).
@@ -390,24 +390,24 @@ public class SurveyService {
     public Map<String, Object> getResponsesMapForSession(String sessionId) {
         List<SurveyResponse> rows = responseRepo.findBySubmissionSessionId(sessionId);
         if (rows == null || rows.isEmpty()) return Map.of();
-
+ 
         // Group rows by mainQuestionId
         Map<Integer, List<SurveyResponse>> grouped = new java.util.LinkedHashMap<>();
         for (SurveyResponse r : rows) {
             grouped.computeIfAbsent(r.getMainQuestionId(), k -> new ArrayList<>()).add(r);
         }
-
+ 
         Map<String, Object> result = new java.util.LinkedHashMap<>();
         for (Map.Entry<Integer, List<SurveyResponse>> entry : grouped.entrySet()) {
             Integer mainQId = entry.getKey();
             List<SurveyResponse> qRows = entry.getValue();
-
+ 
             // Determine question type by inspecting the rows
             MainQuestion mq = mainQuestionRepo.findById(mainQId).orElse(null);
             String qType = (mq != null && mq.getQuestionType() != null)
                     ? mq.getQuestionType().toLowerCase().trim()
                     : "single ans";
-
+ 
             switch (qType) {
                 case "single ans":
                     if (!qRows.isEmpty() && qRows.get(0).getOptionId() != null) {
@@ -457,7 +457,7 @@ public class SurveyService {
         }
         return result;
     }
-
+ 
     // ── Build relational rows for a single answer value ──
     private List<SurveyResponse> buildResponseRows(SurveySubmission submission, Integer mainQId, Object value) {
         List<SurveyResponse> rows = new ArrayList<>();
@@ -468,7 +468,7 @@ public class SurveyService {
         Integer categoryId = (mq != null && mq.getCategoryId() != null)
                 ? mq.getCategoryId().intValue()
                 : null;
-
+ 
         switch (qType) {
             case "single ans":
                 rows.add(new SurveyResponse(submission, mainQId, null, toInt(value), null, null, categoryId));
@@ -503,48 +503,48 @@ public class SurveyService {
         }
         return rows;
     }
-
+ 
     // ── Helper ──
     private Integer toInt(Object obj) {
         if (obj == null) return null;
         if (obj instanceof Number n) return n.intValue();
         return Integer.valueOf(obj.toString());
     }
-
+ 
     public Map<Integer, BigDecimal> getAllResponse() {
         List<Option> optionScore = optionRepo.findAll();
         List<SurveyResponse> surveyResponse = responseRepo.findAll();
-
+ 
         Map<Integer, BigDecimal> optionScoreMap = new HashMap<>();
         for (Option opt : optionScore) {
             optionScoreMap.put(opt.getOptionId(), opt.getScore());
         }
-
+ 
         Map<Integer, BigDecimal> categoryTotalScore = new HashMap<>();
         Map<Integer, Integer> categoryCount = new HashMap<>();
-
+ 
         // Process standard survey responses (options with scores)
         for (SurveyResponse response : surveyResponse) {
             Integer categoryId = response.getCategoryId();
             Integer optionId = response.getOptionId();
-
+ 
             BigDecimal score = optionScoreMap.get(optionId);
-
+ 
             if (score != null) {
                 categoryTotalScore.put(categoryId, categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(score));
                 categoryCount.put(categoryId, categoryCount.getOrDefault(categoryId, 0) + 1);
             }
             // Note: Free text responses are processed separately through FreetextCache batch processing
         }
-
+ 
         // Process free text from cache using pagination for memory efficiency
         processFreetextCacheWithPagination(categoryTotalScore, categoryCount);
-
+ 
         Map<Integer, BigDecimal> categoryAverage = new HashMap<>();
         for (Integer categoryId : categoryTotalScore.keySet()) {
             BigDecimal total = categoryTotalScore.get(categoryId);
             int count = categoryCount.get(categoryId);
-
+ 
             if (count > 0) {
                 BigDecimal average = total.divide(
                         BigDecimal.valueOf(count),
@@ -557,15 +557,15 @@ public class SurveyService {
         System.out.println(categoryAverage);
         return categoryAverage;
     }
-
+ 
     /**
      * Process free text cache entries in batches using VECTORIZED batch API (single request per batch)
      * instead of parallel individual requests. This is 10x more efficient.
-     * 
+     *
      * @param categoryTotalScore Map to accumulate category scores
      * @param categoryCount Map to count responses per category
      */
-    private void processFreetextCacheWithPagination(Map<Integer, BigDecimal> categoryTotalScore, 
+    private void processFreetextCacheWithPagination(Map<Integer, BigDecimal> categoryTotalScore,
                                                     Map<Integer, Integer> categoryCount) {
         RestTemplate restTemplate = new RestTemplate();
         String batchUrl = "http://localhost:8000/predict-batch-optimized";
@@ -574,30 +574,30 @@ public class SurveyService {
         int batchSize = 100;
         int batchNumber = 0;
         boolean hasMoreUnprocessed = true;
-
+ 
         // ========== PHASE 1: Send BATCH REQUESTS to BERT (1 request per 100 texts) ==========
         while (hasMoreUnprocessed) {
             try {
                 // Always fetch from page 0 since we're removing entries as we process them
                 Pageable pageable = PageRequest.of(0, batchSize);
                 Page<FreetextCache> page = freetextCacheRepo.findByBertScoreIsNull(pageable);
-
+ 
                 if (page.isEmpty()) {
                     System.out.println("✓ No more unprocessed free text entries to process");
                     hasMoreUnprocessed = false;
                     break;
                 }
-
+ 
                 batchNumber++;
                 List<FreetextCache> batchContent = page.getContent();
-                System.out.println("Processing batch " + batchNumber + " with " + batchContent.size() 
+                System.out.println("Processing batch " + batchNumber + " with " + batchContent.size()
                         + " entries (Total unprocessed remaining: " + (page.getTotalElements() - batchContent.size()) + ")");
-
+ 
                 // ===== STEP 1: Collect all texts from this batch =====
                 List<String> textsForBatch = batchContent.stream()
                     .map(FreetextCache::getFreeText)
                     .collect(Collectors.toList());
-
+ 
                 System.out.println("  → Sending " + textsForBatch.size() + " texts to BERT in ONE batch request...");
                 
                 // ===== STEP 2: Send ONE REQUEST with all texts (vectorized processing) =====
@@ -621,7 +621,7 @@ public class SurveyService {
                         
                         if (result.containsKey("predicted_class_id")) {
                             Object scoreObj = result.get("predicted_class_id");
-                            BigDecimal score = scoreObj instanceof Number 
+                            BigDecimal score = scoreObj instanceof Number
                                 ? BigDecimal.valueOf(((Number) scoreObj).doubleValue())
                                 : new BigDecimal(scoreObj.toString());
                             
@@ -641,19 +641,19 @@ public class SurveyService {
                     e.printStackTrace();
                     break;
                 }
-
+ 
                 // If this batch was smaller than batchSize, we've reached the end
                 if (batchContent.size() < batchSize) {
                     System.out.println("✓ Completed processing all batches (final batch had " + batchContent.size() + " < " + batchSize + ")");
                     hasMoreUnprocessed = false;
                 }
-
+ 
             } catch (Exception e) {
                 System.err.println("Error fetching batch " + batchNumber + ": " + e.getMessage());
                 break;
             }
         }
-
+ 
         // ========== PHASE 2: Aggregate processed scores (single efficient query) ==========
         System.out.println("✓ Aggregating processed scores from cache...");
         
@@ -662,7 +662,7 @@ public class SurveyService {
                 .stream()
                 .filter(fc -> fc.getBertScore() != null)
                 .toList();
-
+ 
         for (FreetextCache cache : processedScores) {
             Integer categoryId = cache.getCategoryId();
             categoryTotalScore.put(categoryId, categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(cache.getBertScore()));
@@ -671,6 +671,6 @@ public class SurveyService {
         
         System.out.println("✓ Aggregation complete: " + processedScores.size() + " processed entries counted");
     }
-
-
+ 
+ 
 }
