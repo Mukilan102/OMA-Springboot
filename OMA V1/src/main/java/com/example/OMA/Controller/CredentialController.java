@@ -30,7 +30,7 @@ import java.util.Map;
 public class CredentialController {
     
     private static final Logger logger = LoggerFactory.getLogger(CredentialController.class);
-    private static final String BERT_MODEL_URL = "http://localhost:8000/health";
+    private static final String BERT_MODEL_URL = "http://internal-bert-internal-alb-1833527551.ap-south-2.elb.amazonaws.com/health";
 
     @Value("${cookie.secure:false}")
     private boolean cookieSecure;

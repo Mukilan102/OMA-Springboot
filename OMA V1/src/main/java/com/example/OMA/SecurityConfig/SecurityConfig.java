@@ -123,7 +123,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/survey/session/*/data").authenticated()
                 .requestMatchers("/api/credential/check").authenticated()
                 .requestMatchers("/api/credential/logout").authenticated()
-                .requestMatchers("/api/credential/register").authenticated()
+                .requestMatchers("/api/credential/register").permitAll()
                 // Public endpoints - allow all
                 
                 .requestMatchers("/api/credential/login").permitAll()

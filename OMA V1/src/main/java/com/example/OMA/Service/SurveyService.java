@@ -568,7 +568,7 @@ public class SurveyService {
     private void processFreetextCacheWithPagination(Map<Integer, BigDecimal> categoryTotalScore,
                                                     Map<Integer, Integer> categoryCount) {
         RestTemplate restTemplate = new RestTemplate();
-        String batchUrl = "http://localhost:8000/predict-batch-optimized";
+        String batchUrl = "http://internal-bert-internal-alb-1833527551.ap-south-2.elb.amazonaws.com/predict-batch-optimized";
         
         // Process in batches of 100 to avoid memory overflow
         int batchSize = 100;
