@@ -1,0 +1,56 @@
+name: Deploy Spring Boot to ECS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'OMA V1/**'   # Trigger only when backend changes
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
+      ECR_REPO: oma-backend
+      CLUSTER_NAME: Springboot-Cluster
+      SERVICE_NAME: springboot-task-definition-service
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Login to ECR
+      run: |
+        aws ecr get-login-password --region $AWS_REGION \
+        | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+    - name: Build Docker Image
+      run: |
+        docker build -t springboot "./OMA V1"
+
+    - name: Tag Docker Image
+      run: |
+        docker tag springboot:latest \
+        $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:latest
+
+    - name: Push to ECR
+      run: |
+        docker push \
+        $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:latest
+
+    - name: Deploy to ECS
+      run: |
+        aws ecs update-service \
+        --cluster $CLUSTER_NAME \
+        --service $SERVICE_NAME \
+        --force-new-deployment
